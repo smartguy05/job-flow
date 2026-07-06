@@ -9,7 +9,16 @@ export async function GET(req: NextRequest) {
   const hasAnthropicKey = !!process.env.ANTHROPIC_API_KEY;
   const hasOpenaiKey = !!process.env.OPENAI_API_KEY;
   const keyReadyForProvider = s.provider === "openai" ? hasOpenaiKey : hasAnthropicKey;
-  return NextResponse.json({ ...s, hasAnthropicKey, hasOpenaiKey, keyReadyForProvider });
+  // Audio transcription is OpenAI-only (Anthropic has no transcription endpoint), so it needs
+  // OPENAI_API_KEY regardless of the chat provider.
+  const transcriptionReady = hasOpenaiKey;
+  return NextResponse.json({
+    ...s,
+    hasAnthropicKey,
+    hasOpenaiKey,
+    keyReadyForProvider,
+    transcriptionReady,
+  });
 }
 
 export async function PUT(req: NextRequest) {

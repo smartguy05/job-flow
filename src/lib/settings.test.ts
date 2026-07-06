@@ -18,6 +18,12 @@ describe("getSettings / setSettings", () => {
     expect(s.provider).toBe("anthropic");
     expect(s.dedupWindowDays).toBe(30);
     expect(s.openaiModel).toBe("gpt-5.4");
+    expect(s.transcriptionModel).toBe("whisper-1");
+  });
+
+  it("round-trips the transcription model", async () => {
+    await setSettings(userId(), { transcriptionModel: "gpt-4o-mini-transcribe" });
+    expect((await getSettings(userId())).transcriptionModel).toBe("gpt-4o-mini-transcribe");
   });
 
   it("persists and merges partial updates over defaults", async () => {

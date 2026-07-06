@@ -42,6 +42,33 @@ ratings) are mapped by `detailFields()` in `src/lib/application-fields.ts`.
   owned first); logs an `interview` event.
 - `PATCH` / `DELETE /api/interviews/[id]` — update/remove, scoped by `userId`.
 
+### Post-interview debrief
+
+Each interview row can carry an optional debrief (extra columns on the `interviews` table;
+see [data model](../architecture/data-model.md)). The flow, surfaced in `DebriefPanel` on the
+application detail page:
+
+1. **Transcript (optional)** — `PUT /api/interviews/[id]/transcript` stores a transcript.
+   It accepts either a JSON body (`{ transcript }`, pasted) **or** `multipart/form-data` with
+   an audio `file`, which is transcribed server-side via `transcribe()` in
+   `src/lib/llm-provider.ts` (OpenAI Whisper) and then **discarded — audio is never stored**.
+   Because transcription is OpenAI-only (Anthropic has no transcription endpoint), the audio
+   upload requires `OPENAI_API_KEY` regardless of the chat `provider`; the UI gates the file
+   input on the `transcriptionReady` flag from `GET /api/settings`. Pasting text needs no key.
+2. **Gap-filling questions** — `POST /api/interviews/[id]/debrief/questions` calls
+   `generateDebriefQuestions()`, which reads the transcript (if any) plus role/round context
+   and returns 3–5 tailored reflection questions (broader ones when there's no transcript).
+3. **Synthesis** — `POST /api/interviews/[id]/debrief` (body `{ answers }`) stores the answers,
+   calls `synthesizeDebrief()`, and persists a `summary`, `actionItems`, and a
+   `sentiment`/fit signal. It logs an `interview` event (`"Debrief completed"`) so the debrief
+   hits the timeline and resets the reminder quiet-timer.
+4. **Action items → next action** — each extracted action item has a one-click "Set as next
+   action" button that `PATCH`es the application's `nextAction`, feeding the existing
+   [reminders](reminders-and-analytics.md).
+
+Questions/answers/summary/action-items/sentiment are all synthesized through the
+provider-agnostic `complete()`, so they work under either LLM provider.
+
 ## Message drafts (`POST /api/applications/[id]/drafts`)
 
 `generateDraft()` produces a recruiter reply, cover letter, or follow-up using the user's

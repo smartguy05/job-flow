@@ -11,6 +11,9 @@ export type AppSettings = {
   provider: LlmProvider;
   anthropicModel: string;
   openaiModel: string;
+  // OpenAI audio-transcription model for interview debriefs (requires OPENAI_API_KEY
+  // regardless of the chat `provider`, since Anthropic has no transcription endpoint).
+  transcriptionModel: string;
   subtitleDefault: string;
 };
 
@@ -22,6 +25,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   provider: "anthropic",
   anthropicModel: "claude-fable-5",
   openaiModel: "gpt-5.4",
+  transcriptionModel: "whisper-1",
   subtitleDefault: "Senior Software Engineer  •  AI & Developer Tools Specialist",
 };
 

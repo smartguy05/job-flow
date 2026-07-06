@@ -25,6 +25,10 @@ type Detail = {
   interviews: {
     id: number; scheduledAt: string | null; round: string | null; interviewer: string | null;
     prepNotes: string | null; outcome: string | null;
+    transcript: string | null;
+    debriefQuestions: string; debriefAnswers: string;
+    debriefSummary: string | null; debriefActionItems: string;
+    debriefSentiment: string | null; debriefAt: string | null;
   }[];
   drafts: { id: number; type: string; content: string; createdAt: string }[];
   events: { id: number; type: string; detail: string | null; createdAt: string }[];
@@ -273,6 +277,14 @@ function InterviewSection({
     onChange();
   }
 
+  // Whether audio upload is available (OpenAI key present). Paste always works.
+  const [transcriptionReady, setTranscriptionReady] = useState(false);
+  useEffect(() => {
+    api<{ transcriptionReady: boolean }>(`/api/settings`)
+      .then((s) => setTranscriptionReady(!!s.transcriptionReady))
+      .catch(() => {});
+  }, []);
+
   return (
     <section className="card p-5">
       <div className="flex items-center justify-between mb-3">
@@ -293,22 +305,181 @@ function InterviewSection({
       ) : (
         <div className="flex flex-col gap-2">
           {interviews.map((iv) => (
-            <div key={iv.id} className="p-3 rounded-md flex items-center justify-between" style={{ background: "var(--surface-2)" }}>
-              <div>
-                <div className="font-semibold">{iv.round || "Interview"}</div>
-                <div className="text-xs" style={{ color: "var(--muted)" }}>
-                  {fmtDate(iv.scheduledAt)}{iv.interviewer ? ` · ${iv.interviewer}` : ""}
+            <div key={iv.id} className="p-3 rounded-md" style={{ background: "var(--surface-2)" }}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-semibold">{iv.round || "Interview"}</div>
+                  <div className="text-xs" style={{ color: "var(--muted)" }}>
+                    {fmtDate(iv.scheduledAt)}{iv.interviewer ? ` · ${iv.interviewer}` : ""}
+                  </div>
+                  {iv.prepNotes && <div className="text-sm mt-1">{iv.prepNotes}</div>}
                 </div>
-                {iv.prepNotes && <div className="text-sm mt-1">{iv.prepNotes}</div>}
+                <select className="select" style={{ width: "auto" }} value={iv.outcome ?? "pending"}
+                  onChange={(e) => setOutcome(iv.id, e.target.value)}>
+                  {["pending", "passed", "failed", "cancelled"].map((o) => <option key={o} value={o}>{o}</option>)}
+                </select>
               </div>
-              <select className="select" style={{ width: "auto" }} value={iv.outcome ?? "pending"}
-                onChange={(e) => setOutcome(iv.id, e.target.value)}>
-                {["pending", "passed", "failed", "cancelled"].map((o) => <option key={o} value={o}>{o}</option>)}
-              </select>
+              <DebriefPanel
+                applicationId={applicationId}
+                interview={iv}
+                transcriptionReady={transcriptionReady}
+                onChange={onChange}
+              />
             </div>
           ))}
         </div>
       )}
     </section>
+  );
+}
+
+const FIT_COLOR: Record<string, string> = { strong: "var(--success)", mixed: "#b45309", weak: "var(--danger)" };
+
+function DebriefPanel({
+  applicationId, interview, transcriptionReady, onChange,
+}: {
+  applicationId: number;
+  interview: Detail["interviews"][number];
+  transcriptionReady: boolean;
+  onChange: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState("");
+  const [transcript, setTranscript] = useState(interview.transcript ?? "");
+  const questions: string[] = JSON.parse(interview.debriefQuestions || "[]");
+  const storedAnswers: string[] = JSON.parse(interview.debriefAnswers || "[]");
+  const [answers, setAnswers] = useState<string[]>(questions.map((_, i) => storedAnswers[i] ?? ""));
+  const actionItems: string[] = JSON.parse(interview.debriefActionItems || "[]");
+  const sentiment: { fit: string; greenFlags: string[]; redFlags: string[]; rationale: string } | null =
+    interview.debriefSentiment ? JSON.parse(interview.debriefSentiment) : null;
+
+  async function saveTranscript() {
+    setBusy("transcript");
+    try {
+      await api(`/api/interviews/${interview.id}/transcript`, { method: "PUT", body: JSON.stringify({ transcript }) });
+      onChange();
+    } finally { setBusy(""); }
+  }
+
+  async function uploadAudio(file: File) {
+    setBusy("upload");
+    try {
+      const form = new FormData();
+      form.set("file", file);
+      const res = await fetch(`/api/interviews/${interview.id}/transcript`, { method: "PUT", body: form });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Transcription failed");
+      const body = await res.json();
+      setTranscript(body.transcript);
+      onChange();
+    } catch (e) {
+      alert((e as Error).message);
+    } finally { setBusy(""); }
+  }
+
+  async function startDebrief() {
+    setBusy("questions");
+    try {
+      await api(`/api/interviews/${interview.id}/debrief/questions`, { method: "POST" });
+      onChange();
+    } finally { setBusy(""); }
+  }
+
+  async function generateSummary() {
+    setBusy("summary");
+    try {
+      await api(`/api/interviews/${interview.id}/debrief`, { method: "POST", body: JSON.stringify({ answers }) });
+      onChange();
+    } finally { setBusy(""); }
+  }
+
+  async function setNextAction(item: string) {
+    await api(`/api/applications/${applicationId}`, { method: "PATCH", body: JSON.stringify({ nextAction: item }) });
+    onChange();
+  }
+
+  return (
+    <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
+      <button className="btn btn-ghost text-sm" onClick={() => setOpen((v) => !v)}>
+        {open ? "Hide debrief" : interview.debriefAt ? "View debrief" : "Debrief this interview"}
+      </button>
+      {open && (
+        <div className="flex flex-col gap-3 mt-3">
+          {/* Transcript */}
+          <div>
+            <label className="text-sm font-semibold">Transcript (optional)</label>
+            <textarea className="input mt-1" rows={4} placeholder="Paste a transcript, or upload audio below…"
+              value={transcript} onChange={(e) => setTranscript(e.target.value)} />
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              <button className="btn btn-ghost text-sm" disabled={!!busy} onClick={saveTranscript}>
+                {busy === "transcript" ? "Saving…" : "Save transcript"}
+              </button>
+              <input type="file" accept="audio/*" disabled={!transcriptionReady || !!busy}
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadAudio(f); }} />
+              {busy === "upload" && <span className="text-xs" style={{ color: "var(--muted)" }}>Transcribing…</span>}
+              {!transcriptionReady && (
+                <span className="text-xs" style={{ color: "var(--muted)" }}>
+                  Audio upload needs OPENAI_API_KEY set on the server.
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* Questions */}
+          <div>
+            <button className="btn btn-ghost text-sm" disabled={!!busy} onClick={startDebrief}>
+              {busy === "questions" ? "Thinking…" : questions.length ? "Regenerate questions" : "Start debrief"}
+            </button>
+            {questions.length > 0 && (
+              <div className="flex flex-col gap-2 mt-2">
+                {questions.map((q, i) => (
+                  <div key={i}>
+                    <div className="text-sm font-medium">{q}</div>
+                    <textarea className="input mt-1" rows={2} value={answers[i] ?? ""}
+                      onChange={(e) => setAnswers((a) => a.map((v, j) => (j === i ? e.target.value : v)))} />
+                  </div>
+                ))}
+                <button className="btn btn-primary text-sm" disabled={!!busy} onClick={generateSummary}>
+                  {busy === "summary" ? "Synthesizing…" : "Generate summary"}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Synthesis */}
+          {interview.debriefAt && (
+            <div className="flex flex-col gap-2 p-3 rounded-md" style={{ background: "var(--surface)" }}>
+              {interview.debriefSummary && <p className="text-sm">{interview.debriefSummary}</p>}
+              {actionItems.length > 0 && (
+                <div>
+                  <div className="text-sm font-semibold">Action items</div>
+                  <ul className="flex flex-col gap-1 mt-1">
+                    {actionItems.map((item, i) => (
+                      <li key={i} className="flex items-center justify-between gap-2 text-sm">
+                        <span>{item}</span>
+                        <button className="btn btn-ghost text-xs" onClick={() => setNextAction(item)}>Set as next action</button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {sentiment && (
+                <div className="text-sm">
+                  <span className="font-semibold" style={{ color: FIT_COLOR[sentiment.fit] || "var(--muted)" }}>
+                    Fit: {sentiment.fit}
+                  </span>
+                  {sentiment.rationale && <span style={{ color: "var(--muted)" }}> — {sentiment.rationale}</span>}
+                  {sentiment.greenFlags?.length > 0 && (
+                    <div className="mt-1" style={{ color: "var(--success)" }}>+ {sentiment.greenFlags.join(", ")}</div>
+                  )}
+                  {sentiment.redFlags?.length > 0 && (
+                    <div style={{ color: "var(--danger)" }}>− {sentiment.redFlags.join(", ")}</div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

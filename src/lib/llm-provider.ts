@@ -65,3 +65,19 @@ export async function complete(opts: CompleteOpts): Promise<string> {
   if (settings.provider === "openai") return completeOpenAI(opts, model);
   return completeAnthropic(opts, model);
 }
+
+// Transcribe an audio file to text. OpenAI-only: `complete()` is text-chat only and
+// Anthropic has no transcription endpoint, so this always uses OPENAI_API_KEY and the
+// `transcriptionModel` setting regardless of the user's chat `provider`.
+export async function transcribe(opts: { userId: string; file: File }): Promise<string> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey)
+    throw new Error("OPENAI_API_KEY is not set (required for audio transcription)");
+  const settings = await getSettings(opts.userId);
+  const client = new OpenAI({ apiKey });
+  const res = await client.audio.transcriptions.create({
+    model: settings.transcriptionModel,
+    file: opts.file,
+  });
+  return res.text;
+}
