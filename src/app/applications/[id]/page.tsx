@@ -158,7 +158,7 @@ export default function ApplicationDetail() {
             )}
             <div className="flex flex-col gap-2">
               {d.resumes.map((r) => (
-                <div key={r.id} className="flex items-center justify-between p-3 rounded-md" style={{ background: "var(--surface-2)" }}>
+                <div key={r.id} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between p-3 rounded-md" style={{ background: "var(--surface-2)" }}>
                   <div>
                     <span className="font-semibold">v{r.version}</span>
                     <span className="badge ml-2" style={{ background: r.status === "final" ? "#d1fae5" : "#e2e8f0", color: r.status === "final" ? "#065f46" : "#334155" }}>
@@ -172,7 +172,7 @@ export default function ApplicationDetail() {
                     {r.sentAt && <span className="ml-2 text-xs" style={{ color: "var(--success)" }}>sent {fmtDate(r.sentAt)}</span>}
                     <div className="text-xs" style={{ color: "var(--muted)" }}>{fmtRelative(r.createdAt)}</div>
                   </div>
-                  <div className="flex gap-2 items-center">
+                  <div className="flex gap-2 items-center flex-wrap">
                     <Link href={`/resumes/${r.id}`} className="btn btn-ghost">Edit / refine</Link>
                     {r.hasPdf && <a className="btn btn-ghost" href={`/api/resumes/${r.id}/download?fmt=pdf`}>PDF</a>}
                     {r.hasDocx && <a className="btn btn-ghost" href={`/api/resumes/${r.id}/download?fmt=docx`}>DOCX</a>}
@@ -292,12 +292,12 @@ function InterviewSection({
         <button className="btn btn-ghost" onClick={() => setAdding((v) => !v)}>{adding ? "Cancel" : "+ Add"}</button>
       </div>
       {adding && (
-        <div className="grid grid-cols-2 gap-3 mb-4 p-3 rounded-md" style={{ background: "var(--surface-2)" }}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 p-3 rounded-md" style={{ background: "var(--surface-2)" }}>
           <input className="input" placeholder="Round (e.g. Technical)" value={round} onChange={(e) => setRound(e.target.value)} />
           <input className="input" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
           <input className="input" placeholder="Interviewer" value={interviewer} onChange={(e) => setInterviewer(e.target.value)} />
           <input className="input" placeholder="Prep notes" value={prep} onChange={(e) => setPrep(e.target.value)} />
-          <button className="btn btn-primary col-span-2" onClick={add}>Add interview</button>
+          <button className="btn btn-primary sm:col-span-2" onClick={add}>Add interview</button>
         </div>
       )}
       {interviews.length === 0 ? (
@@ -306,7 +306,7 @@ function InterviewSection({
         <div className="flex flex-col gap-2">
           {interviews.map((iv) => (
             <div key={iv.id} className="p-3 rounded-md" style={{ background: "var(--surface-2)" }}>
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-start justify-between gap-2">
                 <div>
                   <div className="font-semibold">{iv.round || "Interview"}</div>
                   <div className="text-xs" style={{ color: "var(--muted)" }}>
@@ -454,9 +454,9 @@ function DebriefPanel({
                   <div className="text-sm font-semibold">Action items</div>
                   <ul className="flex flex-col gap-1 mt-1">
                     {actionItems.map((item, i) => (
-                      <li key={i} className="flex items-center justify-between gap-2 text-sm">
+                      <li key={i} className="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-2 text-sm">
                         <span>{item}</span>
-                        <button className="btn btn-ghost text-xs" onClick={() => setNextAction(item)}>Set as next action</button>
+                        <button className="btn btn-ghost text-xs whitespace-nowrap" onClick={() => setNextAction(item)}>Set as next action</button>
                       </li>
                     ))}
                   </ul>

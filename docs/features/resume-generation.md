@@ -51,6 +51,10 @@ Each user supplies their own inputs (managed on the **Career profile** page,
 
 ## Review & refine
 
+The editor (`src/app/resumes/[id]/page.tsx`) shows a live PDF preview beside the edit/refine
+panel on large screens; on mobile the inline preview is dropped in favor of a "Preview PDF"
+link (native viewer) with the editor first. See [mobile & PWA](mobile-and-pwa.md).
+
 - `PATCH /api/resumes/[id]` — save hand-edited content (re-renders), finalize, or
   `markSent`. Re-rendering goes through `rerenderResume(userId, resumeId, content)`.
 - `POST /api/resumes/[id]/refine` — free-text feedback ("lead with my AI work"). 

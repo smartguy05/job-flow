@@ -48,7 +48,10 @@ return **404** when not found (never 403). See [API reference](../api/reference.
 
 ## The gate (`src/middleware.ts`)
 
-Runs on every request (matcher excludes `_next/static`, `_next/image`, `favicon.ico`). It
+Runs on every request (matcher excludes `_next/static`, `_next/image`, `favicon.ico`, and the
+PWA asset routes `/manifest.webmanifest`, `/icon`, `/apple-icon`, `/icon.svg` — so the browser
+can fetch the manifest/icons without a session, since the manifest link is requested without
+credentials). It
 does a **lightweight sealed-cookie check only** — no DB, no JWKS — because heavy id_token
 verification already happened once at the callback; the 7-day session TTL is the trust
 window.
