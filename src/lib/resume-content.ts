@@ -50,7 +50,7 @@ export const ResumeContentSchema = z.object({
   jobs: z.array(JobSchema),
   earlyRoles: z.array(EarlyRoleSchema),
   projects: z.array(ProjectSchema),
-  githubLine: z.string().default("30+ repositories at github.com/smartguy05"),
+  githubLine: z.string().default(""),
   whyCompany: z.object({
     heading: z.string(), // e.g. "Why Acme & Senior Engineer"
     body: z.string(),

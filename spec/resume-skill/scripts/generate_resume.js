@@ -1,13 +1,17 @@
 /**
- * Anthony James Resume Generator Template
- * 
- * This is a reference template showing the exact docx-js structure and formatting.
- * Claude should adapt this template based on the target job, modifying:
- * - Skills section (reorder/emphasize based on job requirements)
- * - Bullet points (highlight most relevant experience)
- * - Open source projects (include flagship + relevant projects)
- * - "Why [Company]" section (generate fresh for each application)
- * 
+ * Resume Generator — Reference Template
+ *
+ * Illustrates the docx-js structure and formatting. It is NOT filled with real content:
+ * every [PLACEHOLDER] and comment marks something to populate from the user's career info,
+ * tailored to the target job. Adapt:
+ * - Contact header  (pull name, links, and details from the career info)
+ * - Professional summary  (tailor to the target role)
+ * - Skills section  (choose categories the career info supports; most-relevant first)
+ * - Professional experience  (reverse-chronological; full bullets for recent/relevant roles)
+ * - Earlier experience  (summarize older roles to one line each)
+ * - Projects  (include the most relevant documented projects, or omit the section)
+ * - "Why [Company]" section  (generate fresh for each application)
+ *
  * Usage: npm install -g docx && node generate_resume.js
  */
 
@@ -18,6 +22,7 @@ const {
 const fs = require('fs');
 
 // === COLOR PALETTE ===
+// A professional, high-contrast default. Adjust to taste.
 const COLORS = {
   primary: "1a365d",      // Deep navy - name, section headers, skill labels
   accent: "2b6cb0",       // Blue - links, bullets, underlines
@@ -102,7 +107,7 @@ function projectLine(name, tech, description) {
 }
 
 // === DOCUMENT STRUCTURE ===
-// Adapt the children array based on the target job
+// Build the children array from the user's career info, tailored to the target job.
 
 const doc = new Document({
   sections: [{
@@ -113,52 +118,53 @@ const doc = new Document({
       }
     },
     children: [
-      // === HEADER ===
+      // === HEADER === (pull all values from the career info)
       new Paragraph({
         alignment: AlignmentType.CENTER,
         spacing: { after: 60 },
         children: [
-          new TextRun({ text: "ANTHONY JAMES", bold: true, size: 40, font: "Arial", color: COLORS.primary })
+          new TextRun({ text: "[FULL NAME]", bold: true, size: 40, font: "Arial", color: COLORS.primary })
         ]
       }),
       new Paragraph({
         alignment: AlignmentType.CENTER,
         spacing: { after: 50 },
         children: [
-          // Adapt subtitle based on target role
-          new TextRun({ text: "Senior Software Engineer  •  AI & Developer Tools Specialist", size: 21, font: "Arial", color: COLORS.muted })
+          // Adapt the headline/subtitle to the target role
+          new TextRun({ text: "[HEADLINE / TARGET-ROLE SUBTITLE]", size: 21, font: "Arial", color: COLORS.muted })
         ]
       }),
       new Paragraph({
         alignment: AlignmentType.CENTER,
         spacing: { after: 160 },
         children: [
-          new TextRun({ text: "Denver, CO  •  720-260-4498  •  dev.anthony.james.2024@gmail.com  •  ", size: 18, font: "Arial", color: COLORS.text }),
+          // Include only the contact details / links present in the career info.
+          new TextRun({ text: "[Location]  •  [Phone]  •  [Email]  •  ", size: 18, font: "Arial", color: COLORS.text }),
           new ExternalHyperlink({
-            link: "https://resume.apetalo.us",
-            children: [new TextRun({ text: "resume.apetalo.us", size: 18, font: "Arial", color: COLORS.accent })]
+            link: "[WEBSITE URL]",
+            children: [new TextRun({ text: "[website]", size: 18, font: "Arial", color: COLORS.accent })]
           }),
           new TextRun({ text: "  •  ", size: 18, font: "Arial", color: COLORS.muted }),
           new ExternalHyperlink({
-            link: "https://github.com/smartguy05",
+            link: "[GITHUB URL]",
             children: [new TextRun({ text: "GitHub", size: 18, font: "Arial", color: COLORS.accent })]
           }),
           new TextRun({ text: "  •  ", size: 18, font: "Arial", color: COLORS.muted }),
           new ExternalHyperlink({
-            link: "https://linkedin.com/in/anthony-james-70b10137",
+            link: "[LINKEDIN URL]",
             children: [new TextRun({ text: "LinkedIn", size: 18, font: "Arial", color: COLORS.accent })]
           })
         ]
       }),
 
       // === PROFESSIONAL SUMMARY ===
-      // Adapt based on target role - lead with most relevant experience
+      // 3-4 sentences tailored to the target role; lead with the most relevant experience.
       sectionHeader("Professional Summary"),
       new Paragraph({
         spacing: { after: 80 },
         children: [
           new TextRun({
-            text: "[GENERATE: 3-4 sentence summary tailored to the target role. Lead with most relevant experience. Mention years of experience, key specializations, compliance background, and passion for the work.]",
+            text: "[GENERATE: 3-4 sentence summary tailored to the target role, drawn entirely from the career info. Lead with the most relevant experience; mention years of experience, key specializations, and relevant domain background.]",
             size: 19,
             font: "Arial",
             color: COLORS.text
@@ -166,99 +172,59 @@ const doc = new Document({
         ]
       }),
 
-      // === TECHNICAL EXPERTISE ===
-      // Reorder categories based on job requirements - most relevant first
-      sectionHeader("Technical Expertise"),
-      skillCategory("AI & LLM", "Claude API, OpenAI GPT-5, Google Gemini, Llama (local), Tool Use, Prompt Engineering, Context Engineering, RAG, AI Agents"),
-      skillCategory("Dev Tools", "Claude Code (power user), CLI Tools, IDE Extensions, VS Code Plugins, AI-Assisted Workflows, Custom Hooks & Skills"),
-      skillCategory("Frontend", "React (Hooks, Context, Suspense), TypeScript, Angular 4-15, Blazor MAUI, Component Architecture, Performance Optimization"),
-      skillCategory("Backend", "C#/.NET Core (14 yrs), Node.js, Python, Azure (5+ yrs), AWS, Docker, Kubernetes, gRPC, SignalR, Microservices"),
-      skillCategory("Data", "PostgreSQL, SQL Server, Redis, Elastic Search, RabbitMQ, CI/CD Pipelines, Azure DevOps"),
-      skillCategory("Compliance", "PCI-DSS, SOX, HIPAA, GDPR, WCAG 2.1 Accessibility, Federal Security Standards"),
+      // === TECHNICAL / CORE SKILLS ===
+      // Choose categories the career info supports; order most-relevant-to-the-role first.
+      sectionHeader("Skills"),
+      skillCategory("[Category 1]", "[comma-separated skills from career info]"),
+      skillCategory("[Category 2]", "[comma-separated skills from career info]"),
+      skillCategory("[Category 3]", "[comma-separated skills from career info]"),
+      // ...add categories as the career info supports.
 
       // === PROFESSIONAL EXPERIENCE ===
+      // Reverse-chronological. Full bullets (3-5) for recent/relevant roles; end each with
+      // a "Technologies:" line listing only technologies the career info attributes to it.
       sectionHeader("Professional Experience"),
 
-      // ONEflight - Jun 2025 – Present
-      jobHeader("Senior Software Engineer", "ONEflight International", "Denver, CO", "Jun 2025 – Present"),
-      bullet("[Tailor bullets to target role - 4-5 bullets]"),
-      bullet("Leading Claude Code optimization initiative—implementing AI-friendly documentation standards, custom hooks, skills, and agents to improve team-wide developer productivity"),
-      bullet("Architecting AI flight assistant using multiple frontier LLMs (Claude, GPT-5, Gemini) with custom tool use implementations and context engineering"),
-      bullet("Building cross-platform Blazor MAUI application with React component integration, real-time aircraft tracking, and SignalR"),
-      bullet("Technologies: TypeScript, React, Blazor MAUI, C#/.NET Core, Azure, Claude API, OpenAI API, PostgreSQL, Redis, Kubernetes"),
+      jobHeader("[Title]", "[Company]", "[Location]", "[Start – End]"),
+      bullet("[Accomplishment tailored to the target role — verifiable from the career info]"),
+      bullet("[Accomplishment — verifiable from the career info]"),
+      bullet("[Accomplishment — verifiable from the career info]"),
+      bullet("Technologies: [only technologies the career info attributes to this role]"),
 
-      // Turn Commerce - Feb 2024 – Jan 2025
-      jobHeader("Senior Software Engineer", "Turn Commerce (HugeDomains)", "Denver, CO", "Feb 2024 – Jan 2025"),
-      bullet("Led microservices optimization across 10+ services; implemented DNSSEC across millions of domains"),
-      bullet("Designed CI/CD pipelines in Azure DevOps; created comprehensive documentation standards"),
-      bullet("Technologies: Angular, .NET 6-8, TypeScript, AWS, Azure DevOps, Elastic Search, RabbitMQ, Docker, PostgreSQL"),
+      jobHeader("[Title]", "[Company]", "[Location]", "[Start – End]"),
+      bullet("[Accomplishment — verifiable from the career info]"),
+      bullet("[Accomplishment — verifiable from the career info]"),
+      bullet("Technologies: [only technologies the career info attributes to this role]"),
+      // ...repeat for each recent/relevant role.
 
-      // Redwood Trust - Apr 2022 – Feb 2024
-      // NOTE: Only OpenAI API was used here, NOT Gemini
-      jobHeader("Senior Software Engineer", "Redwood Trust", "Denver, CO", "Apr 2022 – Feb 2024"),
-      bullet("Built complete product in 6 months: Angular/Node.js app with Salesforce integration, custom CMS, SendGrid"),
-      bullet("Pioneered AI integration: real estate classification system using OpenAI API with >95% accuracy"),
-      bullet("Achieved 150-400% performance improvements across dozens of APIs via LINQ optimization and multi-threading"),
-      bullet("Technologies: Angular, React, Node.js, TypeScript, C#, Azure, OpenAI API, Salesforce API, Ionic"),
-
-      // Bank of America - Oct 2020 – Mar 2022
-      jobHeader("Senior Software Engineer", "Bank of America", "Denver, CO", "Oct 2020 – Mar 2022"),
-      bullet("Engineered virtual scrolling components handling 100,000+ records with 90% memory reduction"),
-      bullet("Passed 3 security reviews with zero significant vulnerabilities in G-SIB environment; full WCAG 2.1 compliance"),
-      bullet("Technologies: ASP.NET Core, Angular, TypeScript, SQL Server, AWS, Enterprise Security (SoD, IAM)"),
-
-      // Ntirety - May 2019 – Oct 2020
-      jobHeader("Full Stack Engineer / Team Lead", "Ntirety (Hosting.com)", "Denver, CO", "May 2019 – Oct 2020"),
-      bullet("Led team of 3 devs + QA; primary developer on enterprise customer portal; migrated 1/3+ legacy app to Angular"),
-      bullet("Fixed dozens of security vulnerabilities across SOC 1/2/3, HIPAA, HITRUST, PCI-DSS, GDPR frameworks"),
-      bullet("Technologies: Angular 6-10, C#, ASP.NET Core, TypeScript, AWS, Azure, MS SQL Server"),
-
-      // Federal Reserve - Aug 2018 – May 2019
-      jobHeader("Full Stack Software Engineer", "Federal Reserve Bank", "Denver, CO", "Aug 2018 – May 2019"),
-      bullet("Developed bank auditor portal for Federal Reserve examiners; created ~12 reusable Angular components"),
-      bullet("Built secure OAuth APIs meeting federal standards; ensured Section 508/WCAG accessibility compliance"),
-      bullet("Technologies: Angular 4-7, C#, ASP.NET Core, TypeScript, OAuth, Jenkins"),
-
-      // === EARLIER EXPERIENCE (summarized) ===
+      // === EARLIER EXPERIENCE === (one summarized line per older role)
       sectionHeader("Earlier Experience"),
-      earlyCareerLine("Full Stack Engineer", "Governor's Office of IT, Denver", "Feb–Aug 2018", 
-        "Federal transportation crash data system; CDOT/FHWA/NHTSA integration; dual Oracle/SQL Server architecture."),
-      earlyCareerLine("Software Consultant", "Multiple Clients", "Apr 2015–Jan 2018",
-        "PCI-DSS compliant ATM software (EMV, ISO 8583); casino gaming integrations; law enforcement inventory."),
-      earlyCareerLine("Software Developer", "Synchronoss Technologies", "Apr 2015–Jun 2016",
-        "Python plugins for enterprise telecom GIS platform (SpatialNET) enabling network tracing for major US ISPs."),
-      earlyCareerLine("Software Developer / Sysadmin", "Triple Crown Casinos", "Feb 2010–Apr 2015",
-        "$50K+ cost savings via in-house kiosk software; player tracking for 26K+ customers; BSA/AML compliance."),
+      earlyCareerLine("[Title]", "[Company]", "[Dates]", "[one-line description from career info]"),
+      earlyCareerLine("[Title]", "[Company]", "[Dates]", "[one-line description from career info]"),
+      // ...repeat as needed.
 
-      // === OPEN SOURCE & AI PROJECTS ===
-      // Always include at least one flagship: Net-Guardian-AI, ai.orchestrator, or DataQuery Pro
-      sectionHeader("Open Source & AI Projects"),
-      projectLine("Net-Guardian-AI", "Python/TypeScript", 
-        "AI-powered network security with Claude threat analysis, behavioral anomaly detection, Ollama LLM monitoring for prompt injection/jailbreak detection, and active response"),
-      projectLine("ai.orchestrator", "C#", 
-        "AI agent orchestration framework with plugin architecture enabling AI systems to interact with services and tools"),
-      projectLine("DataQuery Pro", "TypeScript", 
-        "CLI tool for natural language database querying with schema introspection and self-correcting queries"),
-      projectLine("support_channel", "TypeScript", 
-        "RAG-based support channel system for creating knowledge bases with custom data uploads"),
+      // === PROJECTS === (optional; include the most relevant documented projects, or omit)
+      sectionHeader("Projects"),
+      projectLine("[Project]", "[Tech]", "[15-30 word description emphasizing what matters for this role]"),
+      projectLine("[Project]", "[Tech]", "[15-30 word description]"),
+      // Optional pointer to a portfolio/profile if the career info has one:
       new Paragraph({
         spacing: { after: 80 },
         children: [
-          new TextRun({ text: "30+ repositories", bold: true, size: 19, font: "Arial", color: COLORS.muted }),
-          new TextRun({ text: " at github.com/smartguy05", size: 19, font: "Arial", color: COLORS.text })
+          new TextRun({ text: "[Additional projects]", bold: true, size: 19, font: "Arial", color: COLORS.muted }),
+          new TextRun({ text: " at [portfolio / GitHub link]", size: 19, font: "Arial", color: COLORS.text })
         ]
       }),
 
       // === WHY [COMPANY] ===
-      // Generate fresh for each application based on:
-      // 1. Web search about company mission/culture/products
-      // 2. How Anthony's experience aligns
-      // 3. Claude's knowledge of Anthony's values (builder mindset, anti-hype, safety focus)
+      // Generate fresh per application from: the company's mission/products (job description +
+      // research), how the user's real experience aligns, and their genuine values per the
+      // career info. Keep it in the user's voice; never invent motivations.
       sectionHeader("Why [Company Name] & [Role]"),
       new Paragraph({
         children: [
           new TextRun({
-            text: "[GENERATE: 3-5 sentences in Anthony's voice. Direct, builder-focused, anti-hype. Mention specific products/mission that resonate. Connect his compliance background to their safety focus if applicable. End with forward-looking statement about building together.]",
+            text: "[GENERATE: 3-5 sentences in the user's voice. Reference specific products/mission that resonate, connect real experience to the role, and close with a forward-looking note. Everything must be authentic to the career info.]",
             size: 19,
             font: "Arial",
             color: COLORS.text
@@ -271,6 +237,6 @@ const doc = new Document({
 
 // === GENERATE OUTPUT ===
 Packer.toBuffer(doc).then(buffer => {
-  fs.writeFileSync('/mnt/user-data/outputs/Anthony_James_Resume_[Company].docx', buffer);
+  fs.writeFileSync('[Name]_Resume_[Company].docx', buffer);
   console.log('Resume created successfully!');
 });

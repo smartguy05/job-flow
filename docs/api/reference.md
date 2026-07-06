@@ -70,6 +70,9 @@ See [resume generation](../features/resume-generation.md).
 |---|---|
 | `PATCH /api/interviews/[id]` | Update a round. |
 | `DELETE /api/interviews/[id]` | Delete a round. |
+| `PUT /api/interviews/[id]/transcript` | Set the debrief transcript. JSON `{ transcript }` (pasted) **or** `multipart/form-data` with an audio `file` (transcribed via Whisper, then discarded; needs `OPENAI_API_KEY`). → `{ transcript }`. |
+| `POST /api/interviews/[id]/debrief/questions` | Generate + store tailored gap-filling debrief questions. → `{ questions }`. |
+| `POST /api/interviews/[id]/debrief` | Body `{ answers }`. Stores answers, synthesizes + stores `summary`/`actionItems`/`sentiment`, logs an `interview` event. → the synthesis. |
 
 ## Calendar
 

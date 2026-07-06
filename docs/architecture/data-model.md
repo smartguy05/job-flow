@@ -26,7 +26,7 @@ from, and the [API reference](../api/reference.md) for per-route behavior.
 | `contacts` | `id` identity | Recruiters/contacts. |
 | `applications` | `id` identity | The core record (~40 columns). |
 | `resumes` | `id` identity | Generated resume versions + file bytes. |
-| `interviews` | `id` identity | Interview rounds per application. |
+| `interviews` | `id` identity | Interview rounds per application, plus an optional post-interview debrief (`transcript`, `debrief_questions`/`debrief_answers`/`debrief_action_items` as JSON `text`, `debrief_summary`, `debrief_sentiment` JSON, `debrief_at`). Audio is transcribed and discarded — no audio bytes are stored. |
 | `events` | `id` identity | Activity log (timeline + analytics). |
 | `message_drafts` | `id` identity | Reply/cover-letter/follow-up drafts. |
 | `career_profile` | `userId` PK | One master career-info markdown per user. |
@@ -52,7 +52,9 @@ Generated resume files live **in the database**, not on disk:
 - `resumes.baseName` holds the descriptive filename stem (e.g.
   `Jane_Doe_Resume_Globex_v2`) used for downloads.
 - JSON is stored as `text` and (de)serialized in code: `settings.value`,
-  `resumes.contentJson`, `resumes.chatJson`.
+  `resumes.contentJson`, `resumes.chatJson`, and the interview debrief fields
+  (`interviews.debrief_questions` / `debrief_answers` / `debrief_action_items` /
+  `debrief_sentiment`).
 
 Rendering writes to a temp workspace (LibreOffice needs real files), then reads the bytes
 back for storage; downloads stream from the column. See

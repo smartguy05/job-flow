@@ -58,7 +58,7 @@ export default function AnalyticsPage() {
             const v = a.byStatus[s] ?? 0;
             return (
               <div key={s} className="flex items-center gap-3">
-                <div className="text-sm w-32" style={{ color: "var(--muted)" }}>{STATUS_LABELS[s]}</div>
+                <div className="text-sm w-20 sm:w-32 shrink-0 truncate" style={{ color: "var(--muted)" }}>{STATUS_LABELS[s]}</div>
                 <div className="flex-1 rounded-full h-4" style={{ background: "var(--surface-2)" }}>
                   <div className="h-4 rounded-full" style={{ width: `${a.total ? (v / a.total) * 100 : 0}%`, background: "var(--accent)" }} />
                 </div>
@@ -77,7 +77,7 @@ export default function AnalyticsPage() {
               .sort(([, x], [, y]) => y - x)
               .map(([src, n]) => (
                 <div key={src} className="flex items-center gap-3">
-                  <div className="text-sm w-32 capitalize" style={{ color: "var(--muted)" }}>{src}</div>
+                  <div className="text-sm w-20 sm:w-32 shrink-0 capitalize truncate" style={{ color: "var(--muted)" }}>{src}</div>
                   <div className="flex-1 rounded-full h-4" style={{ background: "var(--surface-2)" }}>
                     <div className="h-4 rounded-full" style={{ width: `${a.total ? (n / a.total) * 100 : 0}%`, background: "var(--accent)" }} />
                   </div>
@@ -91,9 +91,9 @@ export default function AnalyticsPage() {
       {months.length > 0 && (
         <section className="card p-5">
           <h2 className="font-semibold mb-3">Applications per month</h2>
-          <div className="flex items-end gap-3 h-40">
+          <div className="flex items-end gap-3 h-40 overflow-x-auto">
             {months.map(([m, v]) => (
-              <div key={m} className="flex flex-col items-center gap-1 flex-1">
+              <div key={m} className="flex flex-col items-center gap-1 flex-1 min-w-[1.75rem]">
                 <div className="w-full rounded-t" style={{ height: `${(v / maxMonth) * 100}%`, background: "var(--accent)", minHeight: 4 }} />
                 <div className="text-xs" style={{ color: "var(--muted)" }}>{m.slice(2)}</div>
                 <div className="text-xs font-semibold">{v}</div>

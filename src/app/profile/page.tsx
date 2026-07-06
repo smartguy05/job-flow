@@ -160,7 +160,7 @@ export default function ProfilePage() {
       </section>
 
       <section className="card p-4">
-        <div className="flex items-center justify-between mb-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
           <h2 className="font-semibold">Edit profile (Markdown)</h2>
           <div className="flex items-center gap-3">
             {msg && <span className="text-sm" style={{ color: "var(--success)" }}>{msg}</span>}
@@ -169,7 +169,7 @@ export default function ProfilePage() {
             </button>
           </div>
         </div>
-        <textarea className="textarea font-mono" style={{ fontSize: "0.8rem" }} rows={28}
+        <textarea className="textarea font-mono max-h-[55vh] md:max-h-none" style={{ fontSize: "0.8rem" }} rows={28}
           value={content} onChange={(e) => setContent(e.target.value)} />
       </section>
 
@@ -218,7 +218,7 @@ export default function ProfilePage() {
       </section>
 
       <section className="card p-4">
-        <div className="flex items-center justify-between mb-1">
+        <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
           <h2 className="font-semibold">Resume skill</h2>
           <div className="flex items-center gap-2">
             <button className="btn btn-ghost" disabled={busy === "skill"} onClick={resetSkill}>Reset to default</button>
@@ -231,7 +231,7 @@ export default function ProfilePage() {
           The instructions that steer how your resumes are generated. {skillIsDefault ? "Using the built-in default." : "Using your custom version."}
         </p>
         <textarea
-          className="textarea font-mono"
+          className="textarea font-mono max-h-[55vh] md:max-h-none"
           style={{ fontSize: "0.8rem" }}
           rows={20}
           value={skill}

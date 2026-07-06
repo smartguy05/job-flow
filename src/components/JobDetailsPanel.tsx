@@ -53,7 +53,7 @@ export function JobDetailsPanel({ applicationId, initial, onSaved }: Props) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
         <div>
           <label className="label">Pay min</label>
           <input className="input" type="number" value={d.payMin ?? ""} onChange={(e) => num("payMin", e.target.value)} />
@@ -71,7 +71,7 @@ export function JobDetailsPanel({ applicationId, initial, onSaved }: Props) {
           </select>
         </div>
         <Text k="bonus" label="Bonus" />
-        <Text k="benefits" label="Benefits" span="col-span-2 md:col-span-3" />
+        <Text k="benefits" label="Benefits" span="sm:col-span-2 md:col-span-3" />
 
         <div>
           <label className="label">Work mode</label>
@@ -89,7 +89,7 @@ export function JobDetailsPanel({ applicationId, initial, onSaved }: Props) {
           </select>
         </div>
         <Text k="seniorityLevel" label="Seniority" />
-        <Text k="techStack" label="Tech stack" span="col-span-2 md:col-span-4" />
+        <Text k="techStack" label="Tech stack" span="sm:col-span-2 md:col-span-4" />
         <Text k="companySize" label="Company size" />
         <Text k="companyStage" label="Company stage" />
         <Text k="industry" label="Industry" />
@@ -108,7 +108,7 @@ export function JobDetailsPanel({ applicationId, initial, onSaved }: Props) {
 
       <hr style={{ borderColor: "var(--border)" }} />
       <h3 className="font-semibold">Your assessment</h3>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3">
         <div>
           <label className="label">Interest</label>
           <select className="select" value={d.interestRating ?? ""} onChange={(e) => num("interestRating", e.target.value)}>
@@ -116,13 +116,13 @@ export function JobDetailsPanel({ applicationId, initial, onSaved }: Props) {
             {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{"★".repeat(n)}</option>)}
           </select>
         </div>
-        <Text k="nextAction" label="Next action" span="col-span-2" />
+        <Text k="nextAction" label="Next action" span="sm:col-span-2" />
         <div>
           <label className="label">Next action date</label>
           <input className="input" type="date" value={(d.nextActionDate as string) ?? ""} onChange={(e) => set("nextActionDate", e.target.value || null)} />
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="label">Pros</label>
           <textarea className="textarea" rows={3} value={d.pros ?? ""} onChange={(e) => set("pros", e.target.value)} />

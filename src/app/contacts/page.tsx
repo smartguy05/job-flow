@@ -43,7 +43,24 @@ export default function ContactsPage() {
         <button className="btn btn-primary mt-3" disabled={busy || !form.name.trim()} onClick={add}>Add</button>
       </section>
 
-      <div className="card overflow-hidden">
+      {/* Mobile: stacked cards */}
+      <div className="flex flex-col gap-2 md:hidden">
+        {contacts.length === 0 ? (
+          <div className="card p-4" style={{ color: "var(--muted)" }}>No contacts yet.</div>
+        ) : (
+          contacts.map((c) => (
+            <div key={c.id} className="card p-3 flex flex-col gap-1">
+              <div className="font-semibold">{c.name}</div>
+              {c.agency && <div className="text-sm" style={{ color: "var(--muted)" }}>{c.agency}</div>}
+              {c.email && <div className="text-sm break-all" style={{ color: "var(--muted)" }}>{c.email}</div>}
+              {c.notes && <div className="text-sm" style={{ color: "var(--muted)" }}>{c.notes}</div>}
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Desktop: table */}
+      <div className="card overflow-hidden hidden md:block">
         <table className="w-full text-sm">
           <thead>
             <tr style={{ background: "var(--surface-2)", color: "var(--muted)" }}>

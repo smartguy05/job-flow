@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const anthropicCreate = vi.fn();
 const openaiCreate = vi.fn();
+const openaiTranscribe = vi.fn();
 
 vi.mock("@anthropic-ai/sdk", () => ({
   default: class {
@@ -13,21 +14,24 @@ vi.mock("@anthropic-ai/sdk", () => ({
 vi.mock("openai", () => ({
   default: class {
     chat = { completions: { create: openaiCreate } };
+    audio = { transcriptions: { create: openaiTranscribe } };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     constructor(_opts: any) {}
   },
 }));
 
-import { complete } from "./llm-provider";
+import { complete, transcribe } from "./llm-provider";
 import { setSettings } from "./settings";
 
 beforeEach(() => {
   anthropicCreate.mockReset();
   openaiCreate.mockReset();
+  openaiTranscribe.mockReset();
   process.env.ANTHROPIC_API_KEY = "test-anthropic";
   process.env.OPENAI_API_KEY = "test-openai";
   anthropicCreate.mockResolvedValue({ content: [{ type: "text", text: "anthropic-reply" }] });
   openaiCreate.mockResolvedValue({ choices: [{ message: { content: "openai-reply" } }] });
+  openaiTranscribe.mockResolvedValue({ text: "transcribed text" });
 });
 
 const base = {
@@ -100,5 +104,25 @@ describe("complete — OpenAI provider", () => {
     await setSettings(globalThis.__testUserId, { provider: "openai", openaiModel: "o3-mini" });
     await complete(base);
     expect(openaiCreate.mock.calls[0][0].max_completion_tokens).toBe(100);
+  });
+});
+
+describe("transcribe", () => {
+  const audioFile = () => new File([new Uint8Array([1, 2, 3])], "a.m4a", { type: "audio/m4a" });
+
+  it("transcribes via OpenAI regardless of the chat provider", async () => {
+    // Chat provider is Anthropic, but transcription must still use OpenAI/Whisper.
+    await setSettings(globalThis.__testUserId, { provider: "anthropic", transcriptionModel: "whisper-1" });
+    const out = await transcribe({ userId: globalThis.__testUserId, file: audioFile() });
+    expect(out).toBe("transcribed text");
+    expect(openaiTranscribe.mock.calls[0][0].model).toBe("whisper-1");
+  });
+
+  it("throws when OPENAI_API_KEY is missing", async () => {
+    delete process.env.OPENAI_API_KEY;
+    await expect(transcribe({ userId: globalThis.__testUserId, file: audioFile() })).rejects.toThrow(
+      /OPENAI_API_KEY/,
+    );
+    expect(openaiTranscribe).not.toHaveBeenCalled();
   });
 });

@@ -28,6 +28,10 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  // Run on everything except Next's static assets and the favicon.
-  matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],
+  // Run on everything except Next's static assets, the favicon, and the PWA asset routes
+  // (manifest + generated icons + icon.svg) so the browser can fetch them without a session
+  // — the manifest link is requested without credentials, even on the login page.
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|manifest.webmanifest|icon|apple-icon|icon.svg).*)",
+  ],
 };

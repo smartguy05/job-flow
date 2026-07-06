@@ -101,12 +101,15 @@ export default function ResumeEditor() {
           </Link>
           <h1 className="text-2xl font-bold mt-1">Resume v{r.version}</h1>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center flex-wrap gap-2">
           {r.pageCount != null && (
             <span className="badge" style={{ background: r.pageCount === 2 ? "#d1fae5" : "#fee2e2", color: r.pageCount === 2 ? "#065f46" : "#991b1b" }}>
               {r.pageCount} pages
             </span>
           )}
+          {/* Mobile: open the PDF in the device's native viewer instead of an inline iframe. */}
+          <a className="btn btn-ghost lg:hidden" target="_blank" rel="noopener"
+            href={`/api/resumes/${r.id}/download?fmt=pdf&inline=1`}>Preview PDF</a>
           <a className="btn btn-ghost" href={`/api/resumes/${r.id}/download?fmt=pdf`}>Download PDF</a>
           <a className="btn btn-ghost" href={`/api/resumes/${r.id}/download?fmt=docx`}>Download DOCX</a>
           <button className="btn btn-ghost" disabled={busy === "finalize" || r.status === "final"} onClick={finalize}>
@@ -126,8 +129,9 @@ export default function ResumeEditor() {
       {error && <div className="card p-3" style={{ borderColor: "var(--danger)", color: "var(--danger)" }}>{error}</div>}
 
       <div className="grid lg:grid-cols-2 gap-4">
-        {/* Left: PDF preview */}
-        <div className="card overflow-hidden" style={{ height: "80vh", position: "sticky", top: 70 }}>
+        {/* Left: PDF preview — inline iframe only on large screens (mobile browsers handle
+            embedded PDFs poorly; the header's "Preview PDF" opens it natively instead). */}
+        <div className="card overflow-hidden hidden lg:block" style={{ height: "80vh", position: "sticky", top: 70 }}>
           <iframe
             key={pdfKey}
             src={`/api/resumes/${r.id}/download?fmt=pdf&inline=1#toolbar=0`}

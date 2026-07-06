@@ -214,6 +214,104 @@ export async function generateDraft(input: {
   return text.trim();
 }
 
+// --- Post-interview debrief ---
+
+type DebriefInterview = {
+  round?: string | null;
+  interviewer?: string | null;
+  company: string;
+  roleTitle: string;
+};
+
+export type DebriefSentiment = {
+  fit: "strong" | "mixed" | "weak";
+  greenFlags: string[];
+  redFlags: string[];
+  rationale: string;
+};
+
+export type DebriefSynthesis = {
+  summary: string;
+  actionItems: string[];
+  sentiment: DebriefSentiment;
+};
+
+// Generate a few tailored gap-filling debrief questions. When a transcript is present the
+// questions probe what it doesn't already reveal; without one they cover the interview broadly.
+export async function generateDebriefQuestions(input: {
+  userId: string;
+  interview: DebriefInterview;
+  transcript?: string | null;
+}): Promise<string[]> {
+  const { interview } = input;
+  const text = await complete({
+    userId: input.userId,
+    maxTokens: 1000,
+    json: true,
+    system:
+      "You help a candidate debrief after a job interview. Produce 3-5 concise, specific " +
+      "questions that prompt useful reflection. If a transcript is provided, ask about things " +
+      "it does NOT already make clear (fill gaps); if not, ask broadly about how it went, what " +
+      "was asked, red/green flags, and open questions. Return ONLY a JSON object " +
+      '{ "questions": ["...", ...] }.',
+    messages: [
+      {
+        role: "user",
+        content:
+          `Company: ${interview.company}\nRole: ${interview.roleTitle}\n` +
+          `Round: ${interview.round || "(unspecified)"}\n` +
+          `Interviewer: ${interview.interviewer || "(unspecified)"}\n\n` +
+          (input.transcript
+            ? `Transcript:\n"""\n${input.transcript}\n"""\n\n`
+            : "No transcript was provided.\n\n") +
+          `Return JSON: { "questions": [ ... ] }.`,
+      },
+    ],
+  });
+  return parseJson<{ questions: string[] }>(text).questions;
+}
+
+// Synthesize the debrief: a summary, extracted action items, and a fit/sentiment signal,
+// grounded in the transcript (if any) plus the candidate's answers to the debrief questions.
+export async function synthesizeDebrief(input: {
+  userId: string;
+  interview: DebriefInterview;
+  transcript?: string | null;
+  questions: string[];
+  answers: string[];
+}): Promise<DebriefSynthesis> {
+  const { interview } = input;
+  const qa = input.questions
+    .map((q, i) => `Q: ${q}\nA: ${input.answers[i] ?? ""}`)
+    .join("\n\n");
+  const text = await complete({
+    userId: input.userId,
+    maxTokens: 2000,
+    json: true,
+    system:
+      "You synthesize a post-interview debrief for a candidate. Base everything on the " +
+      "transcript (if any) and the candidate's answers — do not invent facts. Return ONLY a " +
+      'JSON object with keys: summary (a concise paragraph on how it went), actionItems (a ' +
+      "JSON array of concrete follow-ups / things to research / open questions, each a short " +
+      "string), and sentiment (an object { fit: 'strong'|'mixed'|'weak', greenFlags: string[], " +
+      "redFlags: string[], rationale: string }).",
+    messages: [
+      {
+        role: "user",
+        content:
+          `Company: ${interview.company}\nRole: ${interview.roleTitle}\n` +
+          `Round: ${interview.round || "(unspecified)"}\n\n` +
+          (input.transcript
+            ? `Transcript:\n"""\n${input.transcript}\n"""\n\n`
+            : "No transcript was provided.\n\n") +
+          `Debrief Q&A:\n${qa}\n\n` +
+          `Return JSON with keys: summary, actionItems, sentiment.`,
+      },
+    ],
+  });
+  return parseJson<DebriefSynthesis>(text);
+}
+
 // Help the user edit their career profile: fold new details into the markdown.
 export async function assistCareerProfile(input: {
   userId: string;

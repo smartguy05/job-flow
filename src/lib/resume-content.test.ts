@@ -9,11 +9,11 @@ describe("ResumeContentSchema", () => {
     expect(parsed.jobs[0].bullets.length).toBe(2);
   });
 
-  it("defaults githubLine when omitted", () => {
+  it("defaults githubLine to an empty string when omitted", () => {
     const c = makeResumeContent() as Record<string, unknown>;
     delete c.githubLine;
     const parsed = ResumeContentSchema.parse(c);
-    expect(parsed.githubLine).toContain("repositories");
+    expect(parsed.githubLine).toBe("");
   });
 
   it("rejects content missing required sections", () => {
