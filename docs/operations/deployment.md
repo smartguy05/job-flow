@@ -27,12 +27,20 @@ See [database layer](../architecture/database.md).
 
 Multi-stage `node:22-bookworm-slim`, `output: "standalone"` (`node server.js`):
 
-- **deps** → `npm ci` (pure-JS deps; no native toolchain — `postgres.js`/`pglite` need no
-  compiler).
+- **deps** → `npm install -g npm@11.6.2 && npm ci` (pure-JS deps; no native toolchain —
+  `postgres.js`/`pglite` need no compiler). npm is pinned to 11.x because the base image
+  ships npm 10, which resolves the optional dependency tree (`esbuild`/`@emnapi`) differently
+  from the npm-11 `package-lock.json` and would reject it at `npm ci` with spurious
+  "Missing … from lock file" errors. Keep the pin in step with whatever npm regenerated the
+  lockfile.
 - **builder** → `npm run build`.
 - **runner** → installs `libreoffice-writer` + `poppler-utils` + fonts (needed for resume
   rendering), copies the standalone output plus `drizzle/` (migrations) and `spec/` (the
   default resume skill). Exposes `3000`.
+
+A `.dockerignore` keeps the `COPY . .` build context small and, importantly, keeps `.env`
+(secrets), `node_modules`, `.git`, and tests out of the image layers — runtime env is
+injected by Compose, never baked in.
 
 ## Cloudflare Tunnel
 

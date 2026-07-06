@@ -17,7 +17,7 @@ documents how the system is built and operated. Start here and follow the links.
 
 ### Features
 - [Applications & tracking](features/applications-and-tracking.md) — capture, dedup, CRUD, interviews, drafts, timeline.
-- [Calendar](features/calendar.md) — month grid + agenda of interviews, deadlines, and next-actions across all applications.
+- [Calendar](features/calendar.md) — month grid + agenda of interviews, deadlines, and next-actions across all applications, plus a subscribable `.ics` feed.
 - [Resume generation](features/resume-generation.md) — career profile/files/skill, render pipeline, 2-page fit, downloads.
 - [Reminders & analytics](features/reminders-and-analytics.md) — per-user reminder sweep, ntfy, analytics.
 

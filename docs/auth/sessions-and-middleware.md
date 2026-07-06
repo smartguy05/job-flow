@@ -55,8 +55,12 @@ window.
 
 Logic:
 
-- **Public prefixes** — `/api/auth`, `/api/cron`, `/login` — pass through untouched.
-  (`/api/cron` self-guards: `x-cron-secret` for POST, a user session for GET.)
+- **Public prefixes** — `/api/auth`, `/api/cron`, `/api/calendar/feed`, `/login` — pass
+  through untouched. (`/api/cron` self-guards: `x-cron-secret` for POST, a user session for
+  GET. `/api/calendar/feed` self-guards on a per-user `?token=` so external calendar clients
+  can subscribe without a session; its token management stays at the session-guarded
+  `/api/calendar/token`, deliberately outside this prefix. See
+  [calendar](../features/calendar.md).)
 - Valid session → continue.
 - No session + `/api/*` → `401` JSON.
 - No session + page → `307` redirect to `/login?returnTo=<path>`.
