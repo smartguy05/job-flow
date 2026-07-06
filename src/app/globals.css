@@ -1,0 +1,97 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f7f8fa;
+  --surface: #ffffff;
+  --surface-2: #f1f3f6;
+  --foreground: #1a202c;
+  --muted: #64748b;
+  --border: #e2e8f0;
+  --primary: #1a365d;
+  --accent: #2b6cb0;
+  --accent-fg: #ffffff;
+  --danger: #c53030;
+  --success: #2f855a;
+  --warning: #b7791f;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-border: var(--border);
+  --color-primary: var(--primary);
+  --color-accent: var(--accent);
+  --font-sans: var(--font-geist-sans);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0f141b;
+    --surface: #182029;
+    --surface-2: #1f2833;
+    --foreground: #e5e9ef;
+    --muted: #94a3b8;
+    --border: #2a3441;
+    --primary: #7ca7d9;
+    --accent: #4a90d9;
+    --danger: #f56565;
+    --success: #68d391;
+    --warning: #ecc94b;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+@layer components {
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0.75rem;
+  }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.5rem 0.9rem;
+    border-radius: 0.5rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: opacity 0.15s;
+  }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-primary { background: var(--accent); color: var(--accent-fg); }
+  .btn-primary:hover:not(:disabled) { opacity: 0.9; }
+  .btn-ghost { background: var(--surface-2); color: var(--foreground); border-color: var(--border); }
+  .btn-ghost:hover:not(:disabled) { background: var(--border); }
+  .btn-danger { background: transparent; color: var(--danger); border-color: var(--border); }
+  .input, .textarea, .select {
+    width: 100%;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 0.5rem;
+    padding: 0.55rem 0.7rem;
+    color: var(--foreground);
+    font-size: 0.9rem;
+  }
+  .input:focus, .textarea:focus, .select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  .label { font-size: 0.8rem; font-weight: 600; color: var(--muted); margin-bottom: 0.25rem; display: block; }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.15rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+  }
+}

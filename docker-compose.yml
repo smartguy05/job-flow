@@ -1,0 +1,60 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: jobflow-db
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-jobflow}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-jobflow}
+      - POSTGRES_DB=${POSTGRES_DB:-jobflow}
+    volumes:
+      - jobflow-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-jobflow} -d ${POSTGRES_DB:-jobflow}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  jobflow:
+    build: .
+    container_name: jobflow
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      # Database
+      - DATABASE_URL=postgres://${POSTGRES_USER:-jobflow}:${POSTGRES_PASSWORD:-jobflow}@postgres:5432/${POSTGRES_DB:-jobflow}
+      # Auth (Authentik OIDC) — all required
+      - APP_BASE_URL=${APP_BASE_URL}
+      - OIDC_ISSUER=${OIDC_ISSUER}
+      - OIDC_CLIENT_ID=${OIDC_CLIENT_ID}
+      - OIDC_CLIENT_SECRET=${OIDC_CLIENT_SECRET}
+      - SESSION_SECRET=${SESSION_SECRET}
+      # LLM provider keys (operator-wide)
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      # Reminder cron shared secret
+      - CRON_SECRET=${CRON_SECRET:-}
+
+  # Fires the follow-up reminder sweep every hour via the app's cron endpoint.
+  reminders:
+    image: curlimages/curl:latest
+    container_name: jobflow-reminders
+    restart: unless-stopped
+    depends_on:
+      - jobflow
+    environment:
+      - CRON_SECRET=${CRON_SECRET:-}
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          sleep 3600
+          curl -s -X POST -H "x-cron-secret: $${CRON_SECRET}" http://jobflow:3000/api/cron/reminders || true
+        done
+
+volumes:
+  jobflow-pgdata:
