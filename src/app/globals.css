@@ -82,6 +82,12 @@ body {
     color: var(--foreground);
     font-size: 0.9rem;
   }
+  /* On phones, size inputs to 16px so iOS Safari doesn't zoom on focus, and give
+     interactive controls a 44px touch target. */
+  @media (max-width: 640px) {
+    .input, .textarea, .select { font-size: 16px; }
+    .input, .select, .btn { min-height: 44px; }
+  }
   .input:focus, .textarea:focus, .select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
   .label { font-size: 0.8rem; font-weight: 600; color: var(--muted); margin-bottom: 0.25rem; display: block; }
   .badge {
@@ -95,3 +101,7 @@ body {
     letter-spacing: 0.02em;
   }
 }
+
+/* Safe-area padding for the fixed mobile bottom bar / drawer on notched devices. */
+.pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+.pt-safe { padding-top: env(safe-area-inset-top); }

@@ -103,7 +103,7 @@ export default function CapturePage() {
             <textarea className="textarea" rows={10} value={text} onChange={(e) => setText(e.target.value)}
               placeholder="Paste the recruiter's message, the full job description, or a job posting URL…" />
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="label">Company (optional — if not in the text)</label>
               <input className="input" value={companyHint} onChange={(e) => setCompanyHint(e.target.value)} />
@@ -143,7 +143,7 @@ export default function CapturePage() {
 
           <div className="card p-5 flex flex-col gap-4">
             <h2 className="font-semibold text-lg">Review & confirm</h2>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="label">Company (optional)</label>
                 <input className="input" placeholder="e.g. TBD until recruiter says" value={form.company ?? ""} onChange={(e) => upd("company", e.target.value)} />
@@ -177,7 +177,7 @@ export default function CapturePage() {
 
             <details open className="rounded-md" style={{ background: "var(--surface-2)", padding: "0.75rem 1rem" }}>
               <summary className="font-semibold cursor-pointer">Job details (auto-filled where found)</summary>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mt-3">
                 <div>
                   <label className="label">Pay min</label>
                   <input className="input" type="number" value={form.payMin ?? ""} onChange={(e) => updNum("payMin", e.target.value)} />
@@ -201,7 +201,7 @@ export default function CapturePage() {
                   <label className="label">Bonus</label>
                   <input className="input" value={form.bonus ?? ""} onChange={(e) => upd("bonus", e.target.value)} />
                 </div>
-                <div className="col-span-2 md:col-span-3">
+                <div className="sm:col-span-2 md:col-span-3">
                   <label className="label">Benefits</label>
                   <input className="input" value={form.benefits ?? ""} onChange={(e) => upd("benefits", e.target.value)} />
                 </div>
@@ -227,7 +227,7 @@ export default function CapturePage() {
                   <label className="label">Seniority</label>
                   <input className="input" value={form.seniorityLevel ?? ""} onChange={(e) => upd("seniorityLevel", e.target.value)} />
                 </div>
-                <div className="col-span-2 md:col-span-4">
+                <div className="sm:col-span-2 md:col-span-4">
                   <label className="label">Tech stack (comma-separated)</label>
                   <input className="input" value={form.techStack ?? ""} onChange={(e) => upd("techStack", e.target.value)} />
                 </div>

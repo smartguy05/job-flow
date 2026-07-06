@@ -48,6 +48,19 @@ export default function CalendarPage() {
     [events, todayKey],
   );
 
+  // Mobile agenda: all upcoming events grouped by day.
+  const agenda = useMemo(() => {
+    const groups = new Map<string, CalendarEvent[]>();
+    events
+      .filter((e) => new Date(e.date) >= new Date(todayKey))
+      .sort((a, b) => a.date.localeCompare(b.date))
+      .forEach((e) => {
+        const k = dayKey(new Date(e.date));
+        (groups.get(k) ?? groups.set(k, []).get(k)!).push(e);
+      });
+    return [...groups.entries()];
+  }, [events, todayKey]);
+
   const goMonth = (delta: number) =>
     setCursor((c) => new Date(c.getFullYear(), c.getMonth() + delta, 1));
   const goToday = () => {
@@ -72,7 +85,7 @@ export default function CalendarPage() {
       {loading ? (
         <p style={{ color: "var(--muted)" }}>Loading…</p>
       ) : (
-        <div className="card overflow-hidden">
+        <div className="card overflow-hidden hidden md:block">
           <div className="grid grid-cols-7 text-xs font-semibold" style={{ background: "var(--surface-2)", color: "var(--muted)" }}>
             {WEEKDAYS.map((w) => (
               <div key={w} className="p-2 text-center">{w}</div>
@@ -120,7 +133,8 @@ export default function CalendarPage() {
         </div>
       )}
 
-      <div className="flex flex-col gap-2">
+      {/* Desktop: events for the clicked day, else upcoming */}
+      <div className="hidden md:flex flex-col gap-2">
         {selectedEvents.length > 0 ? (
           <>
             <h2 className="font-semibold">{fmtDate(dayKeyToDate(selected))}</h2>
@@ -139,6 +153,27 @@ export default function CalendarPage() {
           </>
         )}
       </div>
+
+      {/* Mobile: agenda list grouped by day */}
+      {!loading && (
+        <div className="md:hidden flex flex-col gap-4">
+          {agenda.length === 0 ? (
+            <p style={{ color: "var(--muted)" }}>No upcoming events.</p>
+          ) : (
+            agenda.map(([k, evs]) => (
+              <div key={k} className="flex flex-col gap-2">
+                <h2 className="font-semibold text-sm" style={{ color: "var(--muted)" }}>
+                  {fmtDate(dayKeyToDate(k))}
+                </h2>
+                {evs
+                  .slice()
+                  .sort((a, b) => a.date.localeCompare(b.date))
+                  .map((ev, i) => <EventRow key={i} ev={ev} />)}
+              </div>
+            ))
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -148,16 +183,16 @@ function EventRow({ ev, showDate }: { ev: CalendarEvent; showDate?: boolean }) {
   return (
     <Link
       href={`/applications/${ev.applicationId}`}
-      className="card p-3 flex items-center gap-3 hover:opacity-90"
+      className="card p-3 flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 hover:opacity-90"
     >
-      <span className="badge whitespace-nowrap" style={{ background: c.bg, color: c.fg }}>
+      <span className="badge whitespace-nowrap self-start" style={{ background: c.bg, color: c.fg }}>
         {EVENT_TYPE_LABELS[ev.type]}
       </span>
       <span className="font-semibold">{ev.title}</span>
-      <span style={{ color: "var(--muted)" }}>
+      <span className="text-sm sm:text-base" style={{ color: "var(--muted)" }}>
         {ev.company ? `${ev.company} — ${ev.roleTitle}` : ev.roleTitle}
       </span>
-      {showDate && <span className="ml-auto text-sm" style={{ color: "var(--muted)" }}>{fmtDate(ev.date)}</span>}
+      {showDate && <span className="sm:ml-auto text-sm" style={{ color: "var(--muted)" }}>{fmtDate(ev.date)}</span>}
     </Link>
   );
 }

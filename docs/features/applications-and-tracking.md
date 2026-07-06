@@ -36,6 +36,10 @@ same user to the same normalized company and a similar role (Jaccard token simil
 Rich detail fields (compensation, location, seniority, tech stack, logistics, personal
 ratings) are mapped by `detailFields()` in `src/lib/application-fields.ts`.
 
+The dashboard list (`src/app/page.tsx`) renders as a table on desktop and a stacked card list
+on mobile; the detail page's dense field grids collapse to one column on narrow screens. See
+[mobile & PWA](mobile-and-pwa.md).
+
 ## Interviews
 
 - `POST /api/applications/[id]/interviews` — add a round (verifies the application is

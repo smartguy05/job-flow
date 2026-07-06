@@ -81,18 +81,20 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="flex flex-wrap gap-2 items-center">
-        <button className="btn btn-ghost" onClick={() => setFilter("all")}
-          style={filter === "all" ? { borderColor: "var(--accent)" } : {}}>
-          All ({apps.length})
-        </button>
-        {STATUS_ORDER.map((s) => (
-          <button key={s} className="btn btn-ghost" onClick={() => setFilter(s)}
-            style={filter === s ? { borderColor: "var(--accent)" } : {}}>
-            {STATUS_LABELS[s]} ({counts[s]})
+      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:items-center">
+        <div className="flex gap-2 overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0 sm:flex-wrap">
+          <button className="btn btn-ghost whitespace-nowrap" onClick={() => setFilter("all")}
+            style={filter === "all" ? { borderColor: "var(--accent)" } : {}}>
+            All ({apps.length})
           </button>
-        ))}
-        <input className="input" style={{ maxWidth: 220, marginLeft: "auto" }}
+          {STATUS_ORDER.map((s) => (
+            <button key={s} className="btn btn-ghost whitespace-nowrap" onClick={() => setFilter(s)}
+              style={filter === s ? { borderColor: "var(--accent)" } : {}}>
+              {STATUS_LABELS[s]} ({counts[s]})
+            </button>
+          ))}
+        </div>
+        <input className="input w-full sm:w-auto sm:max-w-[220px] sm:ml-auto"
           placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} />
       </div>
 
@@ -103,7 +105,40 @@ export default function Dashboard() {
           No applications yet. <Link href="/capture" className="underline">Capture your first one →</Link>
         </div>
       ) : (
-        <div className="card overflow-hidden">
+        <>
+        {/* Mobile: stacked cards */}
+        <div className="flex flex-col gap-2 md:hidden">
+          {filtered.map((a) => {
+            const actionDue = a.nextActionDate && new Date(a.nextActionDate) <= new Date();
+            return (
+              <Link key={a.id} href={`/applications/${a.id}`}
+                className="card p-3 flex flex-col gap-1.5 active:opacity-80">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-semibold truncate" style={{ color: "var(--accent)" }}>
+                      {a.company || "(Company TBD)"}
+                    </div>
+                    <div className="text-sm truncate">{a.roleTitle}</div>
+                  </div>
+                  <StatusBadge status={a.status} />
+                </div>
+                <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs" style={{ color: "var(--muted)" }}>
+                  {formatPay(a) && <span>{formatPay(a)}</span>}
+                  {a.interestRating ? <span>{"★".repeat(a.interestRating)}</span> : null}
+                  {a.contact?.name && <span>{a.contact.name}</span>}
+                  {a.resumeCount > 0 && <span>{a.resumeCount} résumé{a.resumeCount === 1 ? "" : "s"}</span>}
+                  <span>{fmtRelative(a.lastActivityAt)}</span>
+                  {actionDue && (
+                    <span className="badge" style={{ background: "#fef3c7", color: "#92400e" }}>action due</span>
+                  )}
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+
+        {/* Desktop: table */}
+        <div className="card overflow-hidden hidden md:block">
           <table className="w-full text-sm">
             <thead>
               <tr style={{ background: "var(--surface-2)", color: "var(--muted)" }}>
@@ -143,6 +178,7 @@ export default function Dashboard() {
             </tbody>
           </table>
         </div>
+        </>
       )}
     </div>
   );

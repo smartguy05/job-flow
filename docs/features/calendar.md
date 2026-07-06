@@ -21,7 +21,9 @@ Interviews with no `scheduledAt` are omitted (they have no place on a calendar).
 - **Month grid** (`src/app/calendar/page.tsx`) — 6×7 Monday-start grid with prev/next month
   navigation and a "Today" button. Each cell shows the day number (today highlighted), up to
   two event chips colored by type/outcome, and a `+N more` overflow. Days outside the current
-  month are dimmed. Clicking a cell selects that day.
+  month are dimmed. Clicking a cell selects that day. Shown at `md+` only; on mobile it is
+  replaced by an agenda list of upcoming events grouped by day (see
+  [mobile & PWA](mobile-and-pwa.md)).
 - **Agenda** — below the grid, the selected day's events (or, when that day is empty, the next
   10 upcoming events). Each row links to `/applications/[id]`, where interviews are managed.
 - **Legend** — maps colors to the three event types.
