@@ -26,6 +26,15 @@ describe("GET /api/settings", () => {
     const body = await (await GET(req("/api/settings"))).json();
     expect(body.keyReadyForProvider).toBe(false);
   });
+
+  it("reports transcriptionReady from the OpenAI key regardless of the chat provider", async () => {
+    await PUT(req("/api/settings", "PUT", { provider: "anthropic" }));
+    let body = await (await GET(req("/api/settings"))).json();
+    expect(body.transcriptionReady).toBe(false);
+    process.env.OPENAI_API_KEY = "x";
+    body = await (await GET(req("/api/settings"))).json();
+    expect(body.transcriptionReady).toBe(true);
+  });
 });
 
 describe("PUT /api/settings", () => {

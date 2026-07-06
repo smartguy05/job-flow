@@ -10,6 +10,8 @@ import {
   adjustForLength,
   generateDraft,
   assistCareerProfile,
+  generateDebriefQuestions,
+  synthesizeDebrief,
 } from "./llm";
 import { makeResumeContent } from "@/test/fixtures";
 
@@ -155,5 +157,47 @@ describe("assistCareerProfile", () => {
     mockComplete.mockResolvedValue("# Updated profile\n");
     const out = await assistCareerProfile({ userId: globalThis.__testUserId, current: "# Old", instruction: "add X" });
     expect(out).toBe("# Updated profile");
+  });
+});
+
+const INTERVIEW = { company: "Globex", roleTitle: "AI Engineer", round: "Onsite", interviewer: "Pat" };
+
+describe("generateDebriefQuestions", () => {
+  it("parses questions from a JSON object", async () => {
+    mockComplete.mockResolvedValue(JSON.stringify({ questions: ["How did it go?", "Red flags?"] }));
+    const out = await generateDebriefQuestions({
+      userId: globalThis.__testUserId,
+      interview: INTERVIEW,
+      transcript: "we talked about systems design",
+    });
+    expect(out).toEqual(["How did it go?", "Red flags?"]);
+  });
+
+  it("tolerates a fenced code block", async () => {
+    mockComplete.mockResolvedValue('```json\n{"questions": ["Q1"]}\n```');
+    const out = await generateDebriefQuestions({ userId: globalThis.__testUserId, interview: INTERVIEW });
+    expect(out).toEqual(["Q1"]);
+  });
+});
+
+describe("synthesizeDebrief", () => {
+  it("parses the summary, action items, and sentiment", async () => {
+    mockComplete.mockResolvedValue(
+      JSON.stringify({
+        summary: "Solid round.",
+        actionItems: ["Follow up with recruiter"],
+        sentiment: { fit: "strong", greenFlags: ["good team"], redFlags: [], rationale: "aligned" },
+      }),
+    );
+    const out = await synthesizeDebrief({
+      userId: globalThis.__testUserId,
+      interview: INTERVIEW,
+      transcript: "transcript",
+      questions: ["Q1"],
+      answers: ["A1"],
+    });
+    expect(out.summary).toBe("Solid round.");
+    expect(out.actionItems).toEqual(["Follow up with recruiter"]);
+    expect(out.sentiment.fit).toBe("strong");
   });
 });

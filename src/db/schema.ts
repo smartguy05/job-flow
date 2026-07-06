@@ -167,6 +167,18 @@ export const interviews = pgTable(
     interviewer: text("interviewer"),
     prepNotes: text("prep_notes"),
     outcome: text("outcome"), // pending | passed | failed | cancelled
+
+    // --- Post-interview debrief (optional; 1:1 with the interview) ---
+    // Raw transcript, from an uploaded recording (Whisper) or pasted text. Audio is
+    // transcribed and discarded — never stored.
+    transcript: text("transcript"),
+    debriefQuestions: text("debrief_questions").notNull().default("[]"), // JSON string[]
+    debriefAnswers: text("debrief_answers").notNull().default("[]"), // JSON string[] aligned to questions
+    debriefSummary: text("debrief_summary"),
+    debriefActionItems: text("debrief_action_items").notNull().default("[]"), // JSON string[]
+    debriefSentiment: text("debrief_sentiment"), // JSON { fit, greenFlags, redFlags, rationale }
+    debriefAt: timestamp("debrief_at", { withTimezone: true }), // set when synthesis completes
+
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().$defaultFn(now),
   },
   (t) => [index("interviews_user_app_idx").on(t.userId, t.applicationId)],

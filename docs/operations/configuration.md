@@ -17,7 +17,7 @@ All configuration is via environment variables (see `.env.example`). Two layers:
 | `OIDC_CLIENT_SECRET` | ✅ | OAuth2 client secret (confidential client). |
 | `SESSION_SECRET` | ✅ | iron-session cookie encryption password, **≥32 chars** (`openssl rand -base64 48`). |
 | `ANTHROPIC_API_KEY` | one of | Anthropic key (operator-wide). |
-| `OPENAI_API_KEY` | one of | OpenAI key (operator-wide). At least one provider key is required. |
+| `OPENAI_API_KEY` | one of | OpenAI key (operator-wide). At least one provider key is required. **Also required for interview-debrief audio transcription** (Whisper), even when the chat provider is Anthropic — Anthropic has no transcription endpoint. Without it, pasting a transcript still works; audio upload is disabled. |
 | `CRON_SECRET` | optional | If set, `POST /api/cron/reminders` requires header `x-cron-secret`. |
 | `USE_PGLITE` | optional | `1` forces the in-process test DB (auto-on when `NODE_ENV=test`). |
 | `SKIP_DB_MIGRATE` | optional | `1` skips the startup migration hook. |
@@ -39,6 +39,7 @@ Managed via `GET/PUT /api/settings` and `src/lib/settings.ts` (`AppSettings`,
 | `provider` | `anthropic` | Which LLM provider to use (`anthropic` \| `openai`). |
 | `anthropicModel` | `claude-fable-5` | Model when provider is Anthropic. |
 | `openaiModel` | `gpt-5.4` | Model when provider is OpenAI. |
+| `transcriptionModel` | `whisper-1` | OpenAI audio-transcription model for interview debriefs (uses `OPENAI_API_KEY` regardless of `provider`). |
 | `dedupWindowDays` | `30` | Duplicate-detection window. |
 | `reminderQuietDays` | `7` | Quiet period before a follow-up reminder. |
 | `ntfyUrl` | `""` | ntfy topic URL for reminders. |
