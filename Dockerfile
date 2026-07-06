@@ -6,8 +6,11 @@ WORKDIR /app
 # --- deps ---
 FROM base AS deps
 COPY package.json package-lock.json ./
+# bookworm-slim ships npm 10, but package-lock.json is authored by npm 11. Optional-dependency
+# resolution differs across npm majors, so `npm ci` with npm 10 against an npm-11 lockfile
+# fails with spurious "Missing … from lock file" errors (esbuild/@emnapi). Pin npm to match.
 # postgres.js and pglite are pure JS — no native toolchain needed.
-RUN npm ci
+RUN npm install -g npm@11.6.2 && npm ci
 
 # --- builder ---
 FROM base AS builder

@@ -1,0 +1,38 @@
+# Keep the build context small and secrets out of image layers.
+# The builder stage runs `COPY . .`, so anything not ignored here is sent to the daemon.
+
+# Dependencies & build output (reinstalled/rebuilt inside the image)
+node_modules
+.next
+out
+
+# Secrets & local env (env is injected at runtime via compose, never baked in)
+.env
+.env.*
+!.env.example
+
+# Version control & CI
+.git
+.gitignore
+.github
+
+# Tests & coverage (not needed at runtime)
+coverage
+**/*.test.ts
+**/*.test.tsx
+vitest.config.ts
+vitest.setup.ts
+src/test
+
+# Editor / OS cruft
+.vscode
+.idea
+.DS_Store
+*.log
+
+# Docker & docs (not needed inside the image)
+Dockerfile
+docker-compose.yml
+.dockerignore
+docs
+README.md
