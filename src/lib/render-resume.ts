@@ -135,14 +135,16 @@ export function buildDocx(content: ResumeContent): Document {
 
   children.push(sectionHeader("Open Source & AI Projects"));
   for (const p of content.projects) children.push(projectLine(p.name, p.tech, p.description));
-  children.push(
-    new Paragraph({
-      spacing: { after: 80 },
-      children: [
-        new TextRun({ text: content.githubLine, size: 19, font: "Arial", color: COLORS.muted }),
-      ],
-    }),
-  );
+  if (content.githubLine.trim()) {
+    children.push(
+      new Paragraph({
+        spacing: { after: 80 },
+        children: [
+          new TextRun({ text: content.githubLine, size: 19, font: "Arial", color: COLORS.muted }),
+        ],
+      }),
+    );
+  }
 
   children.push(sectionHeader(content.whyCompany.heading));
   children.push(

@@ -1,144 +1,155 @@
 ---
-name: anthony-resume-builder
-description: "Custom resume generator for Anthony James. Use when Anthony asks to create a resume, CV, or job application document. Requires two inputs: (1) Anthony's career info file (uploaded), and (2) a job posting URL to fetch and analyze. Generates a tailored 2-page resume in both .docx and .pdf formats with a custom Why Company section."
+name: resume-builder
+description: "Tailored resume generator. Use when a user asks to create a resume, CV, or job application document. Requires two inputs: (1) the user's career info (their career profile plus any supplementary career files) and (2) a target job (company, role, and job description). Produces a tailored, two-page resume whose every claim traces back to the career info, with a custom 'Why [Company]' section."
 ---
 
-# Anthony James Resume Builder
+# Resume Builder
+
+Generate a two-page resume tailored to a specific job posting, driven entirely by the
+user's own career info. Nothing in the resume may be invented — the career info is the
+single source of truth for every fact.
 
 ## Workflow
 
-1. **Fetch the job posting** — Use `web_fetch` on the provided URL to get full job requirements
-2. **Read the career file** — Parse Anthony's uploaded career info file from `/mnt/user-data/uploads/`
-3. **Analyze the match** — Identify which skills, experiences, and projects align best with the role
-4. **Generate the resume** — Use the docx-js script in `scripts/generate_resume.js` as a template
-5. **Verify accuracy** — Cross-check every bullet, metric, and technology against the career file. Remove anything not verifiable.
-6. **Convert to PDF** — Run `soffice --headless --convert-to pdf`
-7. **Validate page count** — Run `pdfinfo [file].pdf | grep Pages` and confirm exactly 2 pages
-8. **If not 2 pages** — Adjust content:
-   - If <2 pages: Add more detail to bullets using ONLY verified information from career file
-   - If >2 pages: Condense older job bullets, shorten project descriptions
-9. **Present both files** — Deliver .docx and .pdf to user
+1. **Read the job** — Study the target company, role title, and job description. Note the
+   required skills, technologies, responsibilities, and any signals about company mission
+   or culture.
+2. **Read the career info** — Parse the user's career profile and any supplementary career
+   files. This is the complete, authoritative record of their experience.
+3. **Analyze the match** — Identify which of the user's real skills, experiences, and
+   projects align best with the role.
+4. **Generate the resume** — Produce structured content (summary, skills, experience,
+   earlier experience, projects, "Why [Company]"). Lead with what matters most to this role.
+5. **Verify accuracy** — Cross-check every bullet, metric, technology, title, and date
+   against the career info. Remove anything you cannot verify.
+6. **Validate length** — Aim for content that fills exactly two pages (see below).
+7. **Deliver** — Present the finished resume.
 
-## Critical: Ensuring Exactly 2 Pages
+## Ensuring Exactly Two Pages
 
-The resume MUST be exactly 2 full pages — not 1.5, not 2.5. To achieve this:
+The resume should fill two pages — not one, not two-and-a-half. Adjust content density
+rather than inventing facts.
 
-**If resume is too short (<2 pages):**
-- Expand bullet points with more specific details (metrics, technologies, outcomes)
-- Add more context to the Professional Summary
-- Include 4 projects instead of 3 in Open Source section
-- Add more detail to the "Why [Company]" section
+**If too short (< 2 pages):**
+- Expand bullets with more specific, verifiable detail (metrics, technologies, outcomes)
+- Add context to the professional summary
+- Include an additional relevant project
+- Lengthen the "Why [Company]" section
 
-**If resume is too long (>2 pages):**
-- Reduce older job bullets from 5 to 4
+**If too long (> 2 pages):**
+- Reduce bullets on older or less-relevant roles
 - Shorten project descriptions
 - Condense the "Why [Company]" section
 
 **Target word counts:**
-- Professional Summary: 60-80 words
-- Each skill category line: 15-25 words
-- Job bullets: 15-35 words each
-- Project descriptions: 15-30 words each
-- "Why [Company]" section: 80-120 words
+- Professional summary: 60–80 words
+- Each skill-category line: 15–25 words
+- Job bullets: 15–35 words each
+- Project descriptions: 15–30 words each
+- "Why [Company]" section: 80–120 words
 
-## Critical: Accuracy Verification
+## Accuracy Verification (non-negotiable)
 
-**NEVER fabricate or embellish content to match a job description.** Every claim must be verifiable from Anthony's uploaded career file.
+**NEVER fabricate or embellish content to match a job description.** Every claim must be
+verifiable from the user's career info.
 
 ### Rules
-1. **Technologies** — Only list technologies explicitly mentioned in the career file for each role
-2. **Metrics** — Only use numbers/percentages that appear in the career file (e.g., "90% memory reduction", "$50K savings", ">95% accuracy")
-3. **Job titles** — Use exact titles from the career file
-4. **Dates** — Use exact dates from the career file
-5. **Accomplishments** — Rephrase for relevance, but never invent new accomplishments
-6. **Projects** — Only include open source projects documented in the career file
+1. **Technologies** — Only list technologies the career info attributes to that role.
+2. **Metrics** — Only use numbers/percentages that appear in the career info.
+3. **Job titles** — Use the exact titles from the career info.
+4. **Dates** — Use the exact dates from the career info.
+5. **Accomplishments** — Rephrase for relevance, but never invent new ones.
+6. **Projects** — Only include projects documented in the career info.
+7. **Contact info** — Pull name, contact details, and links from the career info; never
+   guess or substitute.
 
 ### How to Tailor Without Fabricating
-- **DO:** Emphasize existing experience that matches the job (lead with it, add more detail)
-- **DO:** De-emphasize less relevant experience (fewer bullets, less detail)
-- **DO:** Reorder skills categories to lead with most relevant
-- **DO:** Use language/keywords from job posting to describe real experience
-- **DON'T:** Add technologies Anthony didn't use at that job
-- **DON'T:** Invent metrics or outcomes
-- **DON'T:** Claim experience that isn't in the career file
+- **DO** lead with and expand the real experience that matches the job.
+- **DO** de-emphasize less relevant experience (fewer bullets, less detail).
+- **DO** reorder skill categories to lead with the most relevant.
+- **DO** reuse the job posting's language/keywords to describe *real* experience.
+- **DON'T** add technologies the career info doesn't attribute to that role.
+- **DON'T** invent metrics or outcomes.
+- **DON'T** claim experience that isn't in the career info.
 
 ### Verification Step
-Before finalizing, cross-check each bullet point against the career file:
-- Is this technology listed for this specific job? 
+Before finalizing, cross-check each bullet against the career info:
+- Is this technology listed for this specific role?
 - Is this metric accurate?
 - Is this accomplishment documented?
 
-If you can't verify it from the career file, **remove it or rephrase using only verified information.**
+If you can't verify it, **remove it or rephrase using only verified information.**
 
 ## Content Rules
 
-### Contact Info (pull from career file)
-- Name, Phone, Email, GitHub, LinkedIn, Resume Website
-- All links should be clickable hyperlinks
+### Contact Info
+Pull the name, subtitle/headline, location, phone, email, and links (website, GitHub,
+LinkedIn, etc.) from the career info. Include only the links the user actually has. All
+links should be clickable hyperlinks. Adapt the subtitle/headline to the target role.
 
-### Job History
-- **Reverse chronological order** — always
-- **Full descriptions** for jobs from Federal Reserve Bank (Aug 2018) onward:
-  - ONEflight: **5 bullets**, each 20-35 words (current role, most detail)
-  - Turn Commerce: **5 bullets**, each 15-25 words
-  - Redwood Trust: **5 bullets**, each 15-25 words
-  - Bank of America: **5 bullets**, each 15-25 words
-  - Ntirety: **4 bullets**, each 15-25 words
-  - Federal Reserve: **4 bullets**, each 15-25 words
-- **Summarized (1 line + dates)** for jobs before Federal Reserve Bank
-- **Redwood Trust correction**: Only used OpenAI API, never Gemini
-- **Always include a "Technologies:" bullet** as the last bullet for each full job entry
-
-### Open Source Projects
-Always include **at least one flagship project**:
-- **Net-Guardian-AI** — AI-powered network security with Claude threat analysis, anomaly detection, prompt injection detection
-- **ai.orchestrator** — AI agent orchestration framework with plugin architecture
-- **DataQuery Pro** — CLI tool for natural language database querying
-
-**Section requirements:**
-- Include **3-4 projects** total (1-2 flagship + relevant others)
-- Each project description should be **15-30 words**
-- Always end with "30+ repositories at github.com/smartguy05"
-
-Include additional projects only if directly relevant to the target role.
-
-### "Why [Company]" Section
-Generate this section based on:
-1. Web search about the company's mission, culture, and products
-2. How Anthony's experience aligns with the role
-3. Claude's prior knowledge of Anthony's interests and values
-
-Keep it authentic to Anthony's voice — direct, builder-focused, anti-hype.
+### Professional Summary
+3–4 sentences tailored to the target role. Lead with the most relevant experience.
+Mention years of experience, key specializations, and any relevant domain background —
+all drawn from the career info.
 
 ### Skills Section
-Tailor skill categories to the target role. Common categories:
-- AI & LLM, Dev Tools, Frontend, Backend, Data, Compliance
+Organize skills into a handful of categories and **order them with the most relevant
+category for this role first.** Choose category names that fit the user's actual skill
+set (e.g. Languages, Frontend, Backend, Data, Cloud/DevOps, AI/ML, Domain/Compliance) —
+don't force categories the career info doesn't support.
 
-Lead with the most relevant category for the target position.
+### Professional Experience
+- **Reverse chronological order**, always.
+- Give **full treatment (3–5 bullets)** to the most recent and most relevant roles;
+  the current/most-recent role gets the most detail.
+- **Summarize older roles** as a single line (title, company, dates, one-line description)
+  once they add length without adding relevance.
+- **End each full role with a "Technologies: …" line** listing only the technologies the
+  career info attributes to that role.
+- Weight bullets toward the target role: more bullets and detail on relevant roles, fewer
+  on the rest.
+
+### Projects (optional)
+If the career info documents notable projects (open source, side projects, portfolio
+work), include a **Projects** section with the 2–4 most relevant to the target role. Each
+description should be 15–30 words and highlight the aspects that matter for this job. If
+the user has a portfolio/GitHub with many more, close with a short line pointing to it
+(e.g. "Additional projects at <link>"). Omit the section entirely if the career info has
+no meaningful projects.
+
+### "Why [Company]" Section
+Write a short, authentic section connecting the user to this company and role, based on:
+1. The company's mission, culture, and products (from the job description and any research)
+2. How the user's real experience aligns with the role
+3. The user's genuine interests and values as expressed in their career info
+
+Keep it in the user's voice — specific and sincere, not generic filler. Never invent
+personal motivations the career info doesn't support.
 
 ## Formatting Specifications
 
+These are sensible defaults; the rendering layer may override them. Keep the resume clean,
+consistent, and ATS-friendly.
+
 | Element | Specification |
 |---------|---------------|
-| **Page count** | **EXACTLY 2 pages — validate with pdfinfo** |
-| Margins | 620 DXA (~0.43") |
-| Font | Arial throughout |
-| Name | 40pt, centered, primary color |
-| Subtitle | 21pt, centered, muted color |
-| Section headers | 21pt, bold, primary color, accent underline |
-| Body text | 19pt |
-| Job headers | Title + Company + Location + Dates on ONE line |
-| Bullets | Accent color bullet point, 19pt |
-| Spacing after bullets | 45 DXA |
-| Spacing before section headers | 220 DXA |
-| Colors | Primary: #1a365d, Accent: #2b6cb0, Text: #1a202c, Muted: #4a5568 |
+| **Page count** | **Exactly 2 pages** |
+| Margins | ~0.43" (620 DXA) |
+| Font | One clean sans-serif throughout (e.g. Arial/Helvetica) |
+| Name | Large (≈40pt), centered, primary color |
+| Subtitle | Medium (≈21pt), centered, muted color |
+| Section headers | ≈21pt, bold, primary color, accent underline |
+| Body text | ≈19pt |
+| Job headers | Title + Company + Location + Dates on one line |
+| Bullets | Accent-colored bullet, ≈19pt |
+| Colors | Choose a professional, high-contrast palette: a dark primary for name/headers, a mid accent for links/bullets/underlines, near-black body text, and a muted gray for dates/secondary info. |
 
 ## Output
 
-1. Generate `/mnt/user-data/outputs/[Name]_Resume_[Company].docx`
-2. Convert to `/mnt/user-data/outputs/[Name]_Resume_[Company].pdf`
-3. Present both files to user
+Deliver the finished resume tailored to the target company and role.
 
 ## Template
 
-See `scripts/generate_resume.js` for the full docx-js template with all formatting pre-configured.
+See `scripts/generate_resume.js` for a reference docx-js structure with formatting
+pre-configured. It is illustrative — adapt all content to the user's career info and the
+target job.
