@@ -28,6 +28,10 @@ export const users = pgTable("users", {
   sub: text("sub").notNull().unique(), // OIDC subject claim
   email: text("email"),
   name: text("name"),
+  // Unguessable per-user token for the subscribable calendar feed (/api/calendar/feed).
+  // Nullable: the feed is opt-in and the token is minted on first enable. Unique so the
+  // feed route can resolve the owning user in one indexed lookup.
+  calendarToken: text("calendar_token").unique(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().$defaultFn(now),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().$defaultFn(now),
 });

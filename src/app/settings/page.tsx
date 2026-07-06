@@ -21,8 +21,25 @@ export default function SettingsPage() {
   const [s, setS] = useState<Settings | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [feedUrl, setFeedUrl] = useState<string | null>(null);
+  const [feedMsg, setFeedMsg] = useState("");
 
   useEffect(() => { api<Settings>("/api/settings").then(setS); }, []);
+  useEffect(() => { api<{ url: string | null }>("/api/calendar/token").then((r) => setFeedUrl(r.url)); }, []);
+
+  async function enableFeed() {
+    const { url } = await api<{ url: string }>("/api/calendar/token", { method: "POST" });
+    setFeedUrl(url);
+    setFeedMsg(feedUrl ? "New URL generated — the old one no longer works." : "Feed enabled.");
+    setTimeout(() => setFeedMsg(""), 4000);
+  }
+
+  async function copyFeed() {
+    if (!feedUrl) return;
+    await navigator.clipboard.writeText(feedUrl);
+    setFeedMsg("Copied to clipboard.");
+    setTimeout(() => setFeedMsg(""), 2000);
+  }
 
   async function save() {
     if (!s) return;
@@ -78,6 +95,34 @@ export default function SettingsPage() {
             onChange={(e) => setS({ ...s, ntfyUrl: e.target.value })} />
         </div>
         <button className="btn btn-ghost self-start" onClick={testNtfy}>Send test push</button>
+      </section>
+
+      <section className="card p-5 flex flex-col gap-4">
+        <h2 className="font-semibold">Calendar feed</h2>
+        <p className="text-sm" style={{ color: "var(--muted)" }}>
+          Subscribe from Google, Apple, or Outlook Calendar to see your interviews, application
+          deadlines, and next actions. The link contains a private token — anyone with it can read
+          these dates, so keep it to yourself. Add it in your calendar app as &ldquo;subscribe from
+          URL&rdquo; (not a one-time import) so it stays in sync.
+        </p>
+        {feedUrl ? (
+          <>
+            <div>
+              <label className="label">Your private feed URL</label>
+              <input className="input" readOnly value={feedUrl} onFocus={(e) => e.target.select()} />
+            </div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <button className="btn btn-ghost self-start" onClick={copyFeed}>Copy link</button>
+              <button className="btn btn-ghost self-start" onClick={enableFeed}>Regenerate link</button>
+              {feedMsg && <span className="text-sm" style={{ color: "var(--success)" }}>{feedMsg}</span>}
+            </div>
+          </>
+        ) : (
+          <div className="flex items-center gap-3">
+            <button className="btn btn-primary self-start" onClick={enableFeed}>Enable calendar feed</button>
+            {feedMsg && <span className="text-sm" style={{ color: "var(--success)" }}>{feedMsg}</span>}
+          </div>
+        )}
       </section>
 
       <section className="card p-5 flex flex-col gap-4">

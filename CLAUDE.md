@@ -52,3 +52,40 @@ Rules:
 - Auth: `src/lib/auth/session.ts` is Edge-safe (no `next/headers`/db) and used by
   `src/middleware.ts`; route handlers use `getUser(req)` / `unauthorized()` from
   `src/lib/auth.ts`. Migrations run at startup via `src/instrumentation.ts`.
+
+## Documentation
+
+Feature and system documentation lives in `docs/`, organized into directories. `docs/README.md`
+is the index — every doc is linked from it.
+
+Structure:
+- `docs/architecture/` — `overview.md`, `data-model.md`, `database.md` (stack, schema,
+  DB/driver/migrations).
+- `docs/auth/` — `oidc-flow.md`, `sessions-and-middleware.md`, `authentik-setup.md`.
+- `docs/features/` — one file per feature area (`applications-and-tracking.md`,
+  `resume-generation.md`, `reminders-and-analytics.md`).
+- `docs/operations/` — `configuration.md`, `deployment.md`, `testing.md`.
+- `docs/api/` — `reference.md` (every endpoint, grouped by resource).
+
+Authoring rules:
+- **≤500 lines per file.** If a topic outgrows that, split it and cross-link, don't overflow.
+- **Cross-link related docs** with relative Markdown links, and end each file with a
+  "Related" list.
+- **Update `docs/README.md`** whenever you add or remove a doc file.
+- Describe behavior and point to the real code paths; don't paste large code blocks.
+
+Keep docs current as part of the change that alters behavior (like tests) — a change isn't
+done until its docs are updated. Map of what to touch:
+- Schema/tables/migrations (`src/db/**`) → `docs/architecture/data-model.md`, `database.md`.
+- Any API route (`src/app/api/**`) → `docs/api/reference.md` + the relevant
+  `docs/features/*` file.
+- Auth/session/middleware (`src/lib/auth/**`, `src/lib/auth.ts`, `src/middleware.ts`,
+  `src/app/api/auth/**`) → `docs/auth/*`.
+- Resume pipeline / career context (`src/lib/{career,llm,render-resume,resume-service}.ts`)
+  → `docs/features/resume-generation.md`.
+- Env vars or per-user settings (`.env.example`, `src/lib/settings.ts`) →
+  `docs/operations/configuration.md`.
+- Docker/Compose/Dockerfile → `docs/operations/deployment.md`.
+- Test harness/helpers (`vitest.setup.ts`, `src/test/**`) → `docs/operations/testing.md`.
+- New feature area → add a `docs/features/*.md`, link it from `docs/README.md`, and from
+  related docs.

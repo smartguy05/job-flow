@@ -2,8 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { readSession, SESSION_COOKIE } from "@/lib/auth/session";
 
 // Public paths. `/api/cron` is exempt because it self-guards (x-cron-secret for POST, a
-// user session for GET); `/api/auth` is the login flow; `/login` is the sign-in page.
-const PUBLIC_PREFIXES = ["/api/auth", "/api/cron", "/login"];
+// user session for GET); `/api/auth` is the login flow; `/login` is the sign-in page;
+// `/api/calendar/feed` self-guards with a per-user token so external calendar clients (which
+// can't do the OIDC login) can subscribe — token management stays at the session-guarded
+// `/api/calendar/token`, deliberately outside this prefix.
+const PUBLIC_PREFIXES = ["/api/auth", "/api/cron", "/api/calendar/feed", "/login"];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
