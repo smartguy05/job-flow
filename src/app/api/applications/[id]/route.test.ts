@@ -39,6 +39,24 @@ describe("GET /api/applications/[id]", () => {
     expect(body.resumes[0].contentJson).toBeUndefined();
     expect(body.interviews).toHaveLength(1);
   });
+
+  it("includes uploaded file metadata without the bytes", async () => {
+    const id = await insertApp();
+    await db.insert(schema.applicationFiles).values({
+      userId: globalThis.__testUserId,
+      applicationId: id,
+      kind: "benefits",
+      name: "benefits.pdf",
+      mimeType: "application/pdf",
+      size: 3,
+      data: Buffer.from([1, 2, 3]),
+    });
+    const res = await GET(req(`/api/applications/${id}`), ctx(id));
+    const body = await res.json();
+    expect(body.files).toHaveLength(1);
+    expect(body.files[0].name).toBe("benefits.pdf");
+    expect(body.files[0].data).toBeUndefined();
+  });
 });
 
 describe("PATCH /api/applications/[id]", () => {

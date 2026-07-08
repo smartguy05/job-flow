@@ -1,6 +1,10 @@
 import { ResumeContentSchema, type ResumeContent, type ChatMessage } from "./resume-content";
-import { complete, type LlmMessage } from "./llm-provider";
+import { complete, type LlmMessage, type LlmDocument } from "./llm-provider";
 import { getCareerInfo, getResumeSkill } from "./career";
+import { InterviewPrepSchema, type InterviewPrepPack } from "./interview-prep-content";
+import { OfferComparisonVerdictSchema, type OfferComparisonVerdict } from "./offer-comparison-content";
+import { type ComparableApp } from "./offer-comparison";
+import { formatPay } from "./job-fields";
 
 function parseJson<T>(text: string): T {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -310,6 +314,127 @@ export async function synthesizeDebrief(input: {
     ],
   });
   return parseJson<DebriefSynthesis>(text);
+}
+
+// --- Interview prep pack ---
+
+// Generate a prep pack tailored to a specific interview round: research brief, likely
+// questions with STAR answers drawn from the career profile, questions to ask, and a
+// prioritized study checklist. Grounded in the career info — never fabricated.
+export async function generateInterviewPrep(input: {
+  userId: string;
+  application: {
+    company: string;
+    roleTitle: string;
+    jdSnapshot: string;
+    seniorityLevel?: string | null;
+    techStack?: string | null;
+  };
+  interview: { round?: string | null; interviewer?: string | null };
+}): Promise<InterviewPrepPack> {
+  const careerInfo = await getCareerInfo(input.userId);
+  const { application: app, interview } = input;
+  const text = await complete({
+    userId: input.userId,
+    maxTokens: 4000,
+    json: true,
+    system:
+      "You are an interview coach preparing a candidate for a specific interview round. Produce a " +
+      "tailored prep pack. Ground every suggested answer in the candidate's real career info — never " +
+      "fabricate experience, metrics, or projects; if the profile lacks something, frame the answer as " +
+      "how to approach it honestly. Calibrate topics and depth to the role's seniority level and tech " +
+      "stack. Return ONLY a JSON object with keys: researchBrief (a concise paragraph on the role/company " +
+      "and key talking points), likelyQuestions (array of { question, category, suggestedAnswer } — mix " +
+      "behavioral and technical, answers STAR-style from the career info), questionsToAsk (array of " +
+      "strings the candidate should ask the interviewer), studyChecklist (array of { topic, priority, " +
+      "why } prioritized for this level and stack).\n\n=== CAREER INFO (source of truth) ===\n" +
+      careerInfo,
+    messages: [
+      {
+        role: "user",
+        content:
+          `Company: ${app.company}\nRole: ${app.roleTitle}\n` +
+          `Seniority level: ${app.seniorityLevel || "(unspecified)"}\n` +
+          `Tech stack: ${app.techStack || "(unspecified)"}\n` +
+          `Interview round: ${interview.round || "(unspecified)"}\n` +
+          `Interviewer: ${interview.interviewer || "(unspecified)"}\n\n` +
+          `Job description:\n"""\n${app.jdSnapshot}\n"""\n\n` +
+          `Return JSON with keys: researchBrief, likelyQuestions, questionsToAsk, studyChecklist.`,
+      },
+    ],
+  });
+  return InterviewPrepSchema.parse(parseJson<unknown>(text));
+}
+
+// --- Offer comparison ---
+
+function formatComparableApp(a: ComparableApp): string {
+  return [
+    `[applicationId ${a.id}] ${a.company} — ${a.roleTitle}`,
+    `  Base pay: ${formatPay(a) ?? "unspecified"}`,
+    a.bonus ? `  Bonus: ${a.bonus}` : null,
+    a.benefits ? `  Benefits: ${a.benefits}` : null,
+    a.locationMode || a.location
+      ? `  Location: ${[a.locationMode, a.location].filter(Boolean).join(" — ")}`
+      : null,
+    a.employmentType ? `  Employment type: ${a.employmentType}` : null,
+    a.seniorityLevel ? `  Seniority: ${a.seniorityLevel}` : null,
+    a.techStack ? `  Tech stack: ${a.techStack}` : null,
+    a.companySize || a.companyStage || a.industry
+      ? `  Company: ${[a.companySize, a.companyStage, a.industry].filter(Boolean).join(", ")}`
+      : null,
+    a.interestRating != null ? `  Candidate interest: ${a.interestRating}/5` : null,
+    a.pros ? `  Pros: ${a.pros}` : null,
+    a.cons ? `  Cons: ${a.cons}` : null,
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+// Weigh competing offers and produce a verdict: summary, recommendation, ranking, decision
+// factors, and risks. Considers structured comp/benefits, the candidate's own pros/cons and
+// interest, their career profile, optional stated priorities, and any uploaded benefits PDFs.
+export async function generateOfferComparison(input: {
+  userId: string;
+  applications: ComparableApp[];
+  priorities?: string | null;
+  benefitsDocs?: LlmDocument[];
+}): Promise<OfferComparisonVerdict> {
+  const careerInfo = await getCareerInfo(input.userId);
+  const appBlocks = input.applications.map(formatComparableApp).join("\n\n");
+  const priorities = input.priorities?.trim();
+  const text = await complete({
+    userId: input.userId,
+    maxTokens: 4000,
+    json: true,
+    documents: input.benefitsDocs,
+    system:
+      "You are a career advisor helping a candidate choose between competing job offers. Weigh the " +
+      "offers against each other using the structured data, the candidate's own pros/cons and interest " +
+      "ratings, their career profile, and any uploaded benefits documents. " +
+      (priorities
+        ? "Prioritize what the candidate says matters most, stated below.\n"
+        : "In the absence of stated priorities, infer what likely matters from the career profile and per-offer notes.\n") +
+      "Be decisive but honest about tradeoffs; reference the benefits documents when they change the " +
+      "picture. Return ONLY a JSON object with keys: summary (a short paragraph), recommendation " +
+      "({ applicationId, rationale }), ranking (array of { applicationId, rank, rationale }, rank 1 = " +
+      "best), factors (array of { name, notes } covering the key decision dimensions), risks (array of " +
+      "strings). Use the exact applicationId numbers given.\n\n=== CAREER PROFILE ===\n" +
+      careerInfo,
+    messages: [
+      {
+        role: "user",
+        content:
+          (priorities ? `The candidate's stated priorities:\n${priorities}\n\n` : "") +
+          `Competing offers:\n\n${appBlocks}\n\n` +
+          (input.benefitsDocs?.length
+            ? `${input.benefitsDocs.length} benefits document(s) are attached; factor them in.\n\n`
+            : "") +
+          `Return JSON with keys: summary, recommendation, ranking, factors, risks.`,
+      },
+    ],
+  });
+  return OfferComparisonVerdictSchema.parse(parseJson<unknown>(text));
 }
 
 // Help the user edit their career profile: fold new details into the markdown.

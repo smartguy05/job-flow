@@ -179,9 +179,58 @@ export const interviews = pgTable(
     debriefSentiment: text("debrief_sentiment"), // JSON { fit, greenFlags, redFlags, rationale }
     debriefAt: timestamp("debrief_at", { withTimezone: true }), // set when synthesis completes
 
+    // --- AI interview prep pack (optional; regenerable and hand-editable) ---
+    // Full pack stored as one JSON blob (see src/lib/interview-prep-content.ts):
+    // { researchBrief, likelyQuestions[], questionsToAsk[], studyChecklist[] }.
+    prepPackJson: text("prep_pack_json"),
+    prepGeneratedAt: timestamp("prep_generated_at", { withTimezone: true }),
+
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().$defaultFn(now),
   },
   (t) => [index("interviews_user_app_idx").on(t.userId, t.applicationId)],
+);
+
+// Binary documents a user uploads against an application (currently benefits paperwork,
+// PDF). Sent to the model as native document blocks during offer comparison. Bytes live in
+// Postgres bytea like generated resume blobs.
+export const applicationFiles = pgTable(
+  "application_files",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    applicationId: integer("application_id")
+      .notNull()
+      .references(() => applications.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull().default("benefits"), // benefits | (future kinds)
+    name: text("name").notNull(),
+    mimeType: text("mime_type").notNull(),
+    size: integer("size").notNull(), // bytes
+    data: bytea("data").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().$defaultFn(now),
+  },
+  (t) => [index("application_files_user_app_idx").on(t.userId, t.applicationId)],
+);
+
+// Saved offer comparisons. `resultJson` snapshots the deterministic table + AI verdict at
+// generation time so a saved comparison stays stable even if the underlying applications
+// later change or are deleted (hence applicationIds is stored as JSON, not a FK).
+export const offerComparisons = pgTable(
+  "offer_comparisons",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text("title"),
+    applicationIds: text("application_ids").notNull(), // JSON number[]
+    priorities: text("priorities"), // optional free-text steering
+    resultJson: text("result_json").notNull(), // JSON { table, verdict }
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().$defaultFn(now),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().$defaultFn(now),
+  },
+  (t) => [index("offer_comparisons_user_idx").on(t.userId, t.id)],
 );
 
 // Activity log: powers "last activity", the timeline on the detail page, and analytics.

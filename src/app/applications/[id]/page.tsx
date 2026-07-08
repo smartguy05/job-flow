@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { JobDetailsPanel } from "@/components/JobDetailsPanel";
 import { api, fmtDate, fmtRelative, STATUS_LABELS, STATUS_ORDER } from "@/lib/ui";
 import { formatPay, type JobDetails } from "@/lib/job-fields";
+import type { InterviewPrepPack } from "@/lib/interview-prep-content";
 
 type Detail = {
   id: number;
@@ -29,9 +30,11 @@ type Detail = {
     debriefQuestions: string; debriefAnswers: string;
     debriefSummary: string | null; debriefActionItems: string;
     debriefSentiment: string | null; debriefAt: string | null;
+    prepPackJson: string | null; prepGeneratedAt: string | null;
   }[];
   drafts: { id: number; type: string; content: string; createdAt: string }[];
   events: { id: number; type: string; detail: string | null; createdAt: string }[];
+  files: { id: number; kind: string; name: string; mimeType: string; size: number; createdAt: string }[];
 } & Partial<JobDetails>;
 
 export default function ApplicationDetail() {
@@ -216,6 +219,9 @@ export default function ApplicationDetail() {
             )}
           </section>
 
+          {/* Benefits & documents */}
+          <BenefitsFilesSection applicationId={d.id} files={d.files} onChange={load} />
+
           {/* Interviews */}
           <InterviewSection applicationId={d.id} interviews={d.interviews} onChange={load} />
         </div>
@@ -319,6 +325,7 @@ function InterviewSection({
                   {["pending", "passed", "failed", "cancelled"].map((o) => <option key={o} value={o}>{o}</option>)}
                 </select>
               </div>
+              <PrepPackPanel interview={iv} onChange={onChange} />
               <DebriefPanel
                 applicationId={applicationId}
                 interview={iv}
@@ -330,6 +337,186 @@ function InterviewSection({
         </div>
       )}
     </section>
+  );
+}
+
+// Upload/list/delete benefits paperwork (PDF) attached to the application. These files flow
+// into any offer comparison that includes this application.
+function BenefitsFilesSection({
+  applicationId, files, onChange,
+}: {
+  applicationId: number;
+  files: Detail["files"];
+  onChange: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+
+  async function upload(file: File) {
+    setBusy(true);
+    try {
+      const form = new FormData();
+      form.set("file", file);
+      const res = await fetch(`/api/applications/${applicationId}/files`, { method: "POST", body: form });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Upload failed");
+      onChange();
+    } catch (e) {
+      alert((e as Error).message);
+    } finally { setBusy(false); }
+  }
+
+  async function del(fileId: number) {
+    if (!confirm("Delete this document?")) return;
+    await api(`/api/applications/${applicationId}/files/${fileId}`, { method: "DELETE" });
+    onChange();
+  }
+
+  return (
+    <section className="card p-5">
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="font-semibold text-lg">Benefits & documents</h2>
+        <label className="btn btn-ghost cursor-pointer" style={{ opacity: busy ? 0.5 : 1 }}>
+          {busy ? "Uploading…" : "+ Upload PDF"}
+          <input type="file" accept="application/pdf" className="hidden" disabled={busy}
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = ""; }} />
+        </label>
+      </div>
+      <p className="text-xs mb-3" style={{ color: "var(--muted)" }}>
+        Upload benefits paperwork (PDF). It’s used automatically when you compare this offer.
+      </p>
+      {files.length === 0 ? (
+        <p className="text-sm" style={{ color: "var(--muted)" }}>No documents uploaded.</p>
+      ) : (
+        <div className="flex flex-col gap-2">
+          {files.map((f) => (
+            <div key={f.id} className="flex items-center justify-between p-3 rounded-md" style={{ background: "var(--surface-2)" }}>
+              <div>
+                <a className="font-medium underline" style={{ color: "var(--accent)" }}
+                  href={`/api/applications/${applicationId}/files/${f.id}?inline=1`} target="_blank" rel="noreferrer">
+                  {f.name}
+                </a>
+                <div className="text-xs" style={{ color: "var(--muted)" }}>
+                  {(f.size / 1024).toFixed(0)} KB · {fmtRelative(f.createdAt)}
+                </div>
+              </div>
+              <button className="btn btn-ghost text-xs" onClick={() => del(f.id)}>Delete</button>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+// AI interview prep pack for a single interview round: generate/regenerate, view, and edit.
+function PrepPackPanel({
+  interview, onChange,
+}: {
+  interview: Detail["interviews"][number];
+  onChange: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [pack, setPack] = useState<InterviewPrepPack | null>(
+    interview.prepPackJson ? JSON.parse(interview.prepPackJson) : null,
+  );
+
+  async function generate() {
+    setBusy(true);
+    try {
+      const p = await api<InterviewPrepPack>(`/api/interviews/${interview.id}/prep`, { method: "POST" });
+      setPack(p);
+      setOpen(true);
+      onChange();
+    } catch (e) {
+      alert((e as Error).message);
+    } finally { setBusy(false); }
+  }
+
+  async function save() {
+    if (!pack) return;
+    setSaving(true);
+    try {
+      await api(`/api/interviews/${interview.id}/prep`, { method: "PATCH", body: JSON.stringify(pack) });
+      onChange();
+    } finally { setSaving(false); }
+  }
+
+  const setField = <K extends keyof InterviewPrepPack>(k: K, v: InterviewPrepPack[K]) =>
+    setPack((p) => (p ? { ...p, [k]: v } : p));
+
+  return (
+    <div className="mt-3 pt-3" style={{ borderTop: "1px solid var(--border)" }}>
+      <div className="flex items-center gap-2 flex-wrap">
+        <button className="btn btn-primary text-sm" disabled={busy} onClick={generate}>
+          {busy ? "Preparing…" : pack ? "Regenerate prep" : "Generate prep pack"}
+        </button>
+        {pack && (
+          <button className="btn btn-ghost text-sm" onClick={() => setOpen((v) => !v)}>
+            {open ? "Hide prep" : "View prep"}
+          </button>
+        )}
+        {interview.prepGeneratedAt && (
+          <span className="text-xs" style={{ color: "var(--muted)" }}>
+            prepared {fmtRelative(interview.prepGeneratedAt)}
+          </span>
+        )}
+      </div>
+
+      {open && pack && (
+        <div className="flex flex-col gap-4 mt-3 p-3 rounded-md" style={{ background: "var(--surface)" }}>
+          {/* Research brief */}
+          <div>
+            <label className="text-sm font-semibold">Research brief</label>
+            <textarea className="input mt-1" rows={4} value={pack.researchBrief}
+              onChange={(e) => setField("researchBrief", e.target.value)} />
+          </div>
+
+          {/* Likely questions */}
+          <div>
+            <div className="text-sm font-semibold mb-1">Likely questions & answers</div>
+            <div className="flex flex-col gap-3">
+              {pack.likelyQuestions.map((q, i) => (
+                <div key={i} className="p-2 rounded-md" style={{ background: "var(--surface-2)" }}>
+                  <div className="flex items-center gap-2">
+                    <input className="input flex-1" value={q.question}
+                      onChange={(e) => setField("likelyQuestions", pack.likelyQuestions.map((x, j) => j === i ? { ...x, question: e.target.value } : x))} />
+                    <span className="badge" style={{ background: "#e2e8f0", color: "#334155" }}>{q.category || "q"}</span>
+                  </div>
+                  <textarea className="input mt-1" rows={3} value={q.suggestedAnswer}
+                    onChange={(e) => setField("likelyQuestions", pack.likelyQuestions.map((x, j) => j === i ? { ...x, suggestedAnswer: e.target.value } : x))} />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Questions to ask */}
+          <div>
+            <div className="text-sm font-semibold mb-1">Questions to ask them</div>
+            <ul className="list-disc pl-5 text-sm flex flex-col gap-1">
+              {pack.questionsToAsk.map((q, i) => <li key={i}>{q}</li>)}
+            </ul>
+          </div>
+
+          {/* Study checklist */}
+          <div>
+            <div className="text-sm font-semibold mb-1">Study checklist</div>
+            <ul className="flex flex-col gap-1 text-sm">
+              {pack.studyChecklist.map((t, i) => (
+                <li key={i} className="flex gap-2">
+                  <span className="badge" style={{ background: "#e2e8f0", color: "#334155" }}>{t.priority || "—"}</span>
+                  <span><span className="font-medium">{t.topic}</span>{t.why ? <span style={{ color: "var(--muted)" }}> — {t.why}</span> : null}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <button className="btn btn-ghost text-sm self-start" disabled={saving} onClick={save}>
+            {saving ? "Saving…" : "Save edits"}
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 

@@ -62,6 +62,24 @@ describe("complete — Anthropic provider", () => {
     await expect(complete(base)).rejects.toThrow(/ANTHROPIC_API_KEY.*Anthropic/);
     expect(anthropicCreate).not.toHaveBeenCalled();
   });
+
+  it("attaches documents as document blocks on the last user message", async () => {
+    await complete({
+      ...base,
+      documents: [{ name: "benefits.pdf", mediaType: "application/pdf", data: "QkFTRTY0" }],
+    });
+    const msgs = anthropicCreate.mock.calls[0][0].messages;
+    const last = msgs[msgs.length - 1];
+    expect(Array.isArray(last.content)).toBe(true);
+    expect(last.content).toContainEqual({ type: "text", text: "hi" });
+    const doc = last.content.find((b: { type: string }) => b.type === "document");
+    expect(doc.source).toEqual({ type: "base64", media_type: "application/pdf", data: "QkFTRTY0" });
+  });
+
+  it("keeps string message content when no documents are passed", async () => {
+    await complete(base);
+    expect(anthropicCreate.mock.calls[0][0].messages).toEqual([{ role: "user", content: "hi" }]);
+  });
 });
 
 describe("complete — OpenAI provider", () => {
@@ -104,6 +122,20 @@ describe("complete — OpenAI provider", () => {
     await setSettings(globalThis.__testUserId, { provider: "openai", openaiModel: "o3-mini" });
     await complete(base);
     expect(openaiCreate.mock.calls[0][0].max_completion_tokens).toBe(100);
+  });
+
+  it("attaches documents as file parts on the last user message", async () => {
+    await setSettings(globalThis.__testUserId, { provider: "openai", openaiModel: "gpt-5.4" });
+    await complete({
+      ...base,
+      documents: [{ name: "benefits.pdf", mediaType: "application/pdf", data: "QkFTRTY0" }],
+    });
+    const msgs = openaiCreate.mock.calls[0][0].messages;
+    const last = msgs[msgs.length - 1];
+    expect(Array.isArray(last.content)).toBe(true);
+    expect(last.content).toContainEqual({ type: "text", text: "hi" });
+    const file = last.content.find((p: { type: string }) => p.type === "file");
+    expect(file.file).toEqual({ filename: "benefits.pdf", file_data: "data:application/pdf;base64,QkFTRTY0" });
   });
 });
 

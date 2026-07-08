@@ -68,6 +68,16 @@ Streams bytes straight from `resumes.docxData` / `pdfData` (`?fmt=docx|pdf`,
 (e.g. `Jane_Doe_Resume_Globex_v2.pdf`). Returns `404` if the format isn't present or the
 resume isn't owned.
 
+## LLM provider
+
+All generation funnels through `complete()` in `src/lib/llm-provider.ts`, which dispatches on
+the user's `provider` setting (Anthropic or OpenAI) and returns raw text (callers parse JSON).
+Messages are plain strings, but `CompleteOpts` also accepts an optional
+`documents: LlmDocument[]` (base64 PDFs) that `complete()` attaches to the last user message as
+**native document blocks** — Anthropic `document` blocks, OpenAI `file` parts — so PDFs are
+read directly with no OCR/parsing library. Only [offer comparison](offer-comparison.md) passes
+documents today; every other generator is unaffected.
+
 ## Rendering dependencies
 
 `soffice` (LibreOffice) and `pdfinfo` (poppler-utils) must be on `PATH` — provided in the
