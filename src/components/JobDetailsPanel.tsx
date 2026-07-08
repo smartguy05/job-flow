@@ -11,6 +11,25 @@ function toDateInput(v: string | null | undefined): string {
   return v ? new Date(v).toISOString().slice(0, 10) : "";
 }
 
+// A labelled text input. Defined at module scope (NOT inside JobDetailsPanel) so its
+// component identity is stable across renders — otherwise React remounts the <input> on
+// every keystroke and the field loses focus after a single character.
+function TextField({
+  label, value, onChange, span,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  span?: string;
+}) {
+  return (
+    <div className={span}>
+      <label className="label">{label}</label>
+      <input className="input" value={value} onChange={(e) => onChange(e.target.value)} />
+    </div>
+  );
+}
+
 export function JobDetailsPanel({ applicationId, initial, onSaved }: Props) {
   const [d, setD] = useState<Partial<JobDetails>>({
     ...initial,
@@ -37,11 +56,10 @@ export function JobDetailsPanel({ applicationId, initial, onSaved }: Props) {
     }
   }
 
-  const Text = ({ k, label, span }: { k: keyof JobDetails; label: string; span?: string }) => (
-    <div className={span}>
-      <label className="label">{label}</label>
-      <input className="input" value={(d[k] as string) ?? ""} onChange={(e) => set(k, e.target.value)} />
-    </div>
+  // Helper that RETURNS a <TextField> element (a function call, not a JSX component
+  // boundary) so it doesn't introduce an unstable component type into the tree.
+  const text = (k: keyof JobDetails, label: string, span?: string) => (
+    <TextField label={label} span={span} value={(d[k] as string) ?? ""} onChange={(v) => set(k, v)} />
   );
 
   return (
@@ -63,7 +81,7 @@ export function JobDetailsPanel({ applicationId, initial, onSaved }: Props) {
           <label className="label">Pay max</label>
           <input className="input" type="number" value={d.payMax ?? ""} onChange={(e) => num("payMax", e.target.value)} />
         </div>
-        <Text k="payCurrency" label="Currency" />
+        {text("payCurrency", "Currency")}
         <div>
           <label className="label">Period</label>
           <select className="select" value={d.payPeriod ?? ""} onChange={(e) => set("payPeriod", e.target.value || null)}>
@@ -71,8 +89,8 @@ export function JobDetailsPanel({ applicationId, initial, onSaved }: Props) {
             {PAY_PERIODS.map((p) => <option key={p} value={p}>{p}</option>)}
           </select>
         </div>
-        <Text k="bonus" label="Bonus" />
-        <Text k="benefits" label="Benefits" span="sm:col-span-2 md:col-span-3" />
+        {text("bonus", "Bonus")}
+        {text("benefits", "Benefits", "sm:col-span-2 md:col-span-3")}
 
         <div>
           <label className="label">Work mode</label>
@@ -81,7 +99,7 @@ export function JobDetailsPanel({ applicationId, initial, onSaved }: Props) {
             {LOCATION_MODES.map((m) => <option key={m} value={m}>{m}</option>)}
           </select>
         </div>
-        <Text k="location" label="Location" />
+        {text("location", "Location")}
         <div>
           <label className="label">Employment type</label>
           <select className="select" value={d.employmentType ?? ""} onChange={(e) => set("employmentType", e.target.value || null)}>
@@ -89,12 +107,12 @@ export function JobDetailsPanel({ applicationId, initial, onSaved }: Props) {
             {EMPLOYMENT_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
           </select>
         </div>
-        <Text k="seniorityLevel" label="Seniority" />
-        <Text k="techStack" label="Tech stack" span="sm:col-span-2 md:col-span-4" />
-        <Text k="companySize" label="Company size" />
-        <Text k="companyStage" label="Company stage" />
-        <Text k="industry" label="Industry" />
-        <Text k="sourceChannel" label="Source / channel" />
+        {text("seniorityLevel", "Seniority")}
+        {text("techStack", "Tech stack", "sm:col-span-2 md:col-span-4")}
+        {text("companySize", "Company size")}
+        {text("companyStage", "Company stage")}
+        {text("industry", "Industry")}
+        {text("sourceChannel", "Source / channel")}
         <div>
           <label className="label">Applied</label>
           <input className="input" type="date" value={(d.appliedAt as string) ?? ""} onChange={(e) => set("appliedAt", e.target.value || null)} />
@@ -107,8 +125,8 @@ export function JobDetailsPanel({ applicationId, initial, onSaved }: Props) {
           <label className="label">Deadline</label>
           <input className="input" type="date" value={(d.applicationDeadline as string) ?? ""} onChange={(e) => set("applicationDeadline", e.target.value || null)} />
         </div>
-        <Text k="postingId" label="Posting / req ID" />
-        <Text k="referralName" label="Referral name" />
+        {text("postingId", "Posting / req ID")}
+        {text("referralName", "Referral name")}
       </div>
 
       <hr style={{ borderColor: "var(--border)" }} />
@@ -121,7 +139,7 @@ export function JobDetailsPanel({ applicationId, initial, onSaved }: Props) {
             {[1, 2, 3, 4, 5].map((n) => <option key={n} value={n}>{"★".repeat(n)}</option>)}
           </select>
         </div>
-        <Text k="nextAction" label="Next action" span="sm:col-span-2" />
+        {text("nextAction", "Next action", "sm:col-span-2")}
         <div>
           <label className="label">Next action date</label>
           <input className="input" type="date" value={(d.nextActionDate as string) ?? ""} onChange={(e) => set("nextActionDate", e.target.value || null)} />
