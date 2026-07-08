@@ -80,6 +80,14 @@ describe("complete — Anthropic provider", () => {
     await complete(base);
     expect(anthropicCreate.mock.calls[0][0].messages).toEqual([{ role: "user", content: "hi" }]);
   });
+
+  it("throws when the response was cut off at the token limit", async () => {
+    anthropicCreate.mockResolvedValue({
+      content: [{ type: "text", text: "partial…" }],
+      stop_reason: "max_tokens",
+    });
+    await expect(complete(base)).rejects.toThrow(/cut off.*token limit/i);
+  });
 });
 
 describe("complete — OpenAI provider", () => {
@@ -122,6 +130,14 @@ describe("complete — OpenAI provider", () => {
     await setSettings(globalThis.__testUserId, { provider: "openai", openaiModel: "o3-mini" });
     await complete(base);
     expect(openaiCreate.mock.calls[0][0].max_completion_tokens).toBe(100);
+  });
+
+  it("throws when the response was cut off at the token limit", async () => {
+    await setSettings(globalThis.__testUserId, { provider: "openai", openaiModel: "gpt-5.4" });
+    openaiCreate.mockResolvedValue({
+      choices: [{ message: { content: "partial…" }, finish_reason: "length" }],
+    });
+    await expect(complete({ ...base, json: true })).rejects.toThrow(/cut off.*token limit/i);
   });
 
   it("attaches documents as file parts on the last user message", async () => {

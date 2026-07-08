@@ -32,12 +32,21 @@ calls `complete()` in JSON mode, then validates with `InterviewPrepSchema`. It r
 job's `company`, `roleTitle`, `jdSnapshot` (falling back to `sourceRaw`), `seniorityLevel`,
 `techStack`, plus the interview's `round`/`interviewer`.
 
+The pack is generated with an 8000-token budget — prep packs are large (STAR-style answers for
+several questions), and a smaller cap truncated the response mid-array, producing an incomplete
+JSON blob that failed to parse. `complete()` now also treats a response cut off at the token
+limit (Anthropic `stop_reason: "max_tokens"` / OpenAI `finish_reason: "length"`) as an error
+with a clear message, instead of returning partial text that yields a cryptic JSON parse error.
+
 ## API & UI
 
 - `POST /api/interviews/[id]/prep` generates + persists the pack and logs an `interview_prep`
   event; `PATCH` saves hand-edits (see [API reference](../api/reference.md)).
-- The application detail page (`src/app/applications/[id]/page.tsx`) renders a **Prep pack**
-  panel per interview (`PrepPackPanel`) with Generate/Regenerate, a collapsible view, editable
+- Each interview itself can be **edited** (round, date, interviewer, prep notes) or **deleted**
+  from the detail page, backed by `PATCH`/`DELETE /api/interviews/[id]`.
+- The application detail page (`src/app/applications/[id]/page.tsx`) renders each interview as an
+  `InterviewRow` with an outcome selector, inline Edit form, Delete button, and — nested — a
+  **Prep pack** panel (`PrepPackPanel`) with Generate/Regenerate, a collapsible view, editable
   sections, and Save.
 
 ## Related
