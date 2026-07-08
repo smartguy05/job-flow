@@ -17,6 +17,7 @@ export type JobDetails = {
   companyStage: string | null;
   industry: string | null;
   sourceChannel: string | null;
+  appliedAt: string | null;
   datePosted: string | null;
   applicationDeadline: string | null;
   postingId: string | null;

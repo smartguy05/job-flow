@@ -6,6 +6,8 @@ export type LlmProvider = "anthropic" | "openai";
 export type AppSettings = {
   dedupWindowDays: number;
   reminderQuietDays: number;
+  // Auto-expire an open application after this many days with no activity (0 disables).
+  expireApplicationsAfterDays: number;
   ntfyUrl: string; // full topic URL, e.g. https://ntfy.sh/my-jobflow
   ntfyEnabled: boolean;
   provider: LlmProvider;
@@ -20,6 +22,7 @@ export type AppSettings = {
 export const DEFAULT_SETTINGS: AppSettings = {
   dedupWindowDays: 30,
   reminderQuietDays: 7,
+  expireApplicationsAfterDays: 30,
   ntfyUrl: "",
   ntfyEnabled: false,
   provider: "anthropic",

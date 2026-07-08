@@ -14,6 +14,7 @@ function toDateInput(v: string | null | undefined): string {
 export function JobDetailsPanel({ applicationId, initial, onSaved }: Props) {
   const [d, setD] = useState<Partial<JobDetails>>({
     ...initial,
+    appliedAt: toDateInput(initial.appliedAt) || null,
     datePosted: toDateInput(initial.datePosted) || null,
     applicationDeadline: toDateInput(initial.applicationDeadline) || null,
     nextActionDate: toDateInput(initial.nextActionDate) || null,
@@ -94,6 +95,10 @@ export function JobDetailsPanel({ applicationId, initial, onSaved }: Props) {
         <Text k="companyStage" label="Company stage" />
         <Text k="industry" label="Industry" />
         <Text k="sourceChannel" label="Source / channel" />
+        <div>
+          <label className="label">Applied</label>
+          <input className="input" type="date" value={(d.appliedAt as string) ?? ""} onChange={(e) => set("appliedAt", e.target.value || null)} />
+        </div>
         <div>
           <label className="label">Date posted</label>
           <input className="input" type="date" value={(d.datePosted as string) ?? ""} onChange={(e) => set("datePosted", e.target.value || null)} />

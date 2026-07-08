@@ -6,6 +6,7 @@ import { api } from "@/lib/ui";
 type Settings = {
   dedupWindowDays: number;
   reminderQuietDays: number;
+  expireApplicationsAfterDays: number;
   ntfyUrl: string;
   ntfyEnabled: boolean;
   provider: "anthropic" | "openai";
@@ -75,6 +76,15 @@ export default function SettingsPage() {
           <label className="label">Warn if applied to the same company + similar role within (days)</label>
           <input className="input" type="number" value={s.dedupWindowDays}
             onChange={(e) => setS({ ...s, dedupWindowDays: parseInt(e.target.value) || 0 })} />
+        </div>
+      </section>
+
+      <section className="card p-5 flex flex-col gap-4">
+        <h2 className="font-semibold">Application lifecycle</h2>
+        <div>
+          <label className="label">Auto-expire an open application after no activity for (days, 0 to disable)</label>
+          <input className="input" type="number" value={s.expireApplicationsAfterDays}
+            onChange={(e) => setS({ ...s, expireApplicationsAfterDays: parseInt(e.target.value) || 0 })} />
         </div>
       </section>
 

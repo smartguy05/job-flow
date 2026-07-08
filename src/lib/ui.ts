@@ -3,9 +3,10 @@ export const STATUS_LABELS: Record<string, string> = {
   in_progress: "In progress",
   closed_won: "Closed — Won",
   closed_lost: "Closed — Lost",
+  expired: "Expired",
 };
 
-export const STATUS_ORDER = ["applied", "in_progress", "closed_won", "closed_lost"];
+export const STATUS_ORDER = ["applied", "in_progress", "closed_won", "closed_lost", "expired"];
 
 export function statusColor(status: string): { bg: string; fg: string } {
   switch (status) {
@@ -17,6 +18,8 @@ export function statusColor(status: string): { bg: string; fg: string } {
       return { bg: "#d1fae5", fg: "#065f46" };
     case "closed_lost":
       return { bg: "#fee2e2", fg: "#991b1b" };
+    case "expired":
+      return { bg: "#e5e7eb", fg: "#4b5563" };
     default:
       return { bg: "#e2e8f0", fg: "#334155" };
   }

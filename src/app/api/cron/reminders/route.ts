@@ -3,7 +3,7 @@ import { db, schema } from "@/db";
 import { and, inArray, lt, eq, isNotNull } from "drizzle-orm";
 import { getSettings } from "@/lib/settings";
 import { sendNtfy } from "@/lib/ntfy";
-import { logEvent } from "@/lib/events";
+import { expireStaleApplications } from "@/lib/expiry";
 import { getUser, unauthorized } from "@/lib/auth";
 
 const OPEN = ["applied", "in_progress"];
@@ -37,7 +37,7 @@ async function candidatesForUser(userId: string, quietDays: number): Promise<Can
           lt(schema.applications.lastActivityAt, cutoff),
         ),
       )
-  ).filter((a) => !a.lastRemindedAt || a.lastRemindedAt < a.lastActivityAt);
+  ).filter((a) => !a.lastRemindedAt || a.lastRemindedAt < cutoff);
 
   const dueActions = await db
     .select()
@@ -97,9 +97,12 @@ export async function POST(req: NextRequest) {
   const baseUrl = process.env.APP_BASE_URL || "";
   let candidateCount = 0;
   let sent = 0;
+  let expired = 0;
 
   for (const userId of userIds) {
     const s = await getSettings(userId);
+    // Expire stale applications first so freshly-expired ones aren't also nudged below.
+    expired += await expireStaleApplications(userId, s.expireApplicationsAfterDays);
     const candidates = await candidatesForUser(userId, s.reminderQuietDays);
     candidateCount += candidates.length;
     for (const c of candidates) {
@@ -117,12 +120,19 @@ export async function POST(req: NextRequest) {
         .update(schema.applications)
         .set({ lastRemindedAt: new Date() })
         .where(and(eq(schema.applications.id, c.id), eq(schema.applications.userId, userId)));
-      await logEvent(userId, c.id, "reminder_sent", c.reason === "next_action_due" ? "Next action due" : `Quiet ${c.daysQuiet}d`);
+      // Record the reminder WITHOUT bumping lastActivityAt (not logEvent): a system nudge is
+      // not user activity, so it must not reset the inactivity clock that drives expiry.
+      await db.insert(schema.events).values({
+        userId,
+        applicationId: c.id,
+        type: "reminder_sent",
+        detail: c.reason === "next_action_due" ? "Next action due" : `Quiet ${c.daysQuiet}d`,
+      });
       if (ok) sent++;
     }
   }
 
-  return NextResponse.json({ candidates: candidateCount, notificationsSent: sent });
+  return NextResponse.json({ candidates: candidateCount, notificationsSent: sent, expired });
 }
 
 // In-app "needs attention" view for the signed-in user. This route is exempt from the

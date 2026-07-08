@@ -44,4 +44,12 @@ describe("PUT /api/settings", () => {
     expect(body.dedupWindowDays).toBe(21);
     expect(body.openaiModel).toBe("gpt-5.4");
   });
+
+  it("defaults and round-trips expireApplicationsAfterDays", async () => {
+    let body = await (await GET(req("/api/settings"))).json();
+    expect(body.expireApplicationsAfterDays).toBe(30);
+    await PUT(req("/api/settings", "PUT", { expireApplicationsAfterDays: 45 }));
+    body = await (await GET(req("/api/settings"))).json();
+    expect(body.expireApplicationsAfterDays).toBe(45);
+  });
 });
