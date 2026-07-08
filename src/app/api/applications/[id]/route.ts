@@ -56,6 +56,19 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     .from(schema.events)
     .where(eq(schema.events.applicationId, id))
     .orderBy(desc(schema.events.createdAt));
+  // File metadata only — the bytea payload is served by the files download route.
+  const files = await db
+    .select({
+      id: schema.applicationFiles.id,
+      kind: schema.applicationFiles.kind,
+      name: schema.applicationFiles.name,
+      mimeType: schema.applicationFiles.mimeType,
+      size: schema.applicationFiles.size,
+      createdAt: schema.applicationFiles.createdAt,
+    })
+    .from(schema.applicationFiles)
+    .where(eq(schema.applicationFiles.applicationId, id))
+    .orderBy(desc(schema.applicationFiles.createdAt));
 
   const resumeSummaries = resumes.map((r) => ({
     id: r.id,
@@ -69,7 +82,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     hasPdf: !!r.hasPdf,
   }));
 
-  return NextResponse.json({ ...app, contact, resumes: resumeSummaries, interviews, drafts, events });
+  return NextResponse.json({ ...app, contact, resumes: resumeSummaries, interviews, drafts, events, files });
 }
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {

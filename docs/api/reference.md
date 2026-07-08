@@ -24,14 +24,19 @@ See [OIDC flow](../auth/oidc-flow.md).
 |---|---|
 | `GET /api/applications` | List (with contact + resume count). Lazily expires the caller's stale applications first. |
 | `POST /api/applications` | Create. Body: `roleTitle` (req), `company?`, `contactId?`/`contactName?`, detail fields, `appliedAt?` (ISO date) or `markApplied?` (today). → `{ id }`. |
-| `GET /api/applications/[id]` | Full detail: app, contact, resume summaries (`hasDocx`/`hasPdf`), interviews, drafts, events. |
+| `GET /api/applications/[id]` | Full detail: app, contact, resume summaries (`hasDocx`/`hasPdf`), interviews (incl. prep pack), drafts, events, uploaded `files` (metadata only). |
 | `PATCH /api/applications/[id]` | Partial update; accepts `appliedAt` (ISO date, or `null` to clear); status change logs an event. |
 | `DELETE /api/applications/[id]` | Delete (children cascade). |
 | `POST /api/applications/[id]/generate` | Generate a tailored resume version → `{ resumeId }`. 404 if app not owned. |
 | `POST /api/applications/[id]/drafts` | Generate + store a draft. Body: `type` (`reply`\|`cover_letter`\|`follow_up`), `extra?`. |
 | `POST /api/applications/[id]/interviews` | Add an interview round. |
+| `GET /api/applications/[id]/files` | List uploaded document metadata (no bytes). |
+| `POST /api/applications/[id]/files` | Upload a benefits document. `multipart/form-data` with a PDF `file` (PDF-only, ≤10MB). → file metadata. |
+| `GET /api/applications/[id]/files/[fileId]` | Stream the file bytes. `?inline=1` to preview. |
+| `DELETE /api/applications/[id]/files/[fileId]` | Delete an uploaded document. |
 
-See [applications & tracking](../features/applications-and-tracking.md).
+See [applications & tracking](../features/applications-and-tracking.md) and
+[offer comparison](../features/offer-comparison.md).
 
 ## Capture
 
@@ -73,6 +78,8 @@ See [resume generation](../features/resume-generation.md).
 | `PUT /api/interviews/[id]/transcript` | Set the debrief transcript. JSON `{ transcript }` (pasted) **or** `multipart/form-data` with an audio `file` (transcribed via Whisper, then discarded; needs `OPENAI_API_KEY`). → `{ transcript }`. |
 | `POST /api/interviews/[id]/debrief/questions` | Generate + store tailored gap-filling debrief questions. → `{ questions }`. |
 | `POST /api/interviews/[id]/debrief` | Body `{ answers }`. Stores answers, synthesizes + stores `summary`/`actionItems`/`sentiment`, logs an `interview` event. → the synthesis. |
+| `POST /api/interviews/[id]/prep` | Generate (or regenerate) the AI interview prep pack, persist it, log an `interview_prep` event. → the pack. |
+| `PATCH /api/interviews/[id]/prep` | Save hand-edits to the prep pack (validated). → the pack. |
 
 ## Calendar
 
@@ -97,6 +104,17 @@ See [calendar](../features/calendar.md).
 | Method / Path | Purpose |
 |---|---|
 | `GET /api/analytics` | Aggregate pipeline metrics for the user. |
+
+## Offers
+
+| Method / Path | Purpose |
+|---|---|
+| `GET /api/offers/comparisons` | List the user's saved offer comparisons (metadata). |
+| `POST /api/offers/comparisons` | Compare 2+ owned applications. Body: `applicationIds` (req, ≥2), `priorities?`, `title?`. Builds the deterministic table, feeds attached benefits PDFs to the model, saves + returns `{ id, result: { table, verdict } }`. Logs an `offer_comparison` event per application. |
+| `GET /api/offers/comparisons/[id]` | Fetch one saved comparison (snapshotted table + verdict). |
+| `DELETE /api/offers/comparisons/[id]` | Delete a saved comparison. |
+
+See [offer comparison](../features/offer-comparison.md).
 
 ## Settings
 

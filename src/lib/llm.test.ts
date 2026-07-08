@@ -12,8 +12,11 @@ import {
   assistCareerProfile,
   generateDebriefQuestions,
   synthesizeDebrief,
+  generateInterviewPrep,
+  generateOfferComparison,
 } from "./llm";
 import { makeResumeContent } from "@/test/fixtures";
+import type { ComparableApp } from "./offer-comparison";
 
 const mockComplete = vi.mocked(complete);
 
@@ -199,5 +202,88 @@ describe("synthesizeDebrief", () => {
     expect(out.summary).toBe("Solid round.");
     expect(out.actionItems).toEqual(["Follow up with recruiter"]);
     expect(out.sentiment.fit).toBe("strong");
+  });
+});
+
+describe("generateInterviewPrep", () => {
+  const PACK = {
+    researchBrief: "Globex builds dev tools.",
+    likelyQuestions: [{ question: "Tell me about a hard bug", category: "behavioral", suggestedAnswer: "STAR..." }],
+    questionsToAsk: ["What does success look like in 90 days?"],
+    studyChecklist: [{ topic: "System design", priority: "high", why: "Senior role" }],
+  };
+
+  it("returns a schema-validated pack and passes JD/level/round to the model", async () => {
+    mockComplete.mockResolvedValue(JSON.stringify(PACK));
+    const out = await generateInterviewPrep({
+      userId: globalThis.__testUserId,
+      application: { company: "Globex", roleTitle: "AI Engineer", jdSnapshot: "build LLM tools", seniorityLevel: "Senior", techStack: "TypeScript" },
+      interview: { round: "Onsite", interviewer: "Pat" },
+    });
+    expect(out.researchBrief).toBe("Globex builds dev tools.");
+    expect(out.likelyQuestions[0].category).toBe("behavioral");
+    const content = mockComplete.mock.calls[0][0].messages[0].content;
+    expect(content).toMatch(/Senior/);
+    expect(content).toMatch(/Onsite/);
+    expect(content).toMatch(/build LLM tools/);
+    expect(mockComplete.mock.calls[0][0].json).toBe(true);
+  });
+
+  it("rejects a malformed pack", async () => {
+    mockComplete.mockResolvedValue(JSON.stringify({ likelyQuestions: "nope" }));
+    await expect(
+      generateInterviewPrep({
+        userId: globalThis.__testUserId,
+        application: { company: "X", roleTitle: "Y", jdSnapshot: "z" },
+        interview: {},
+      }),
+    ).rejects.toThrow();
+  });
+});
+
+describe("generateOfferComparison", () => {
+  const VERDICT = {
+    summary: "Globex edges ahead.",
+    recommendation: { applicationId: 1, rationale: "Better comp and fit" },
+    ranking: [
+      { applicationId: 1, rank: 1, rationale: "Higher pay" },
+      { applicationId: 2, rank: 2, rationale: "Lower pay" },
+    ],
+    factors: [{ name: "Compensation", notes: "1 pays more" }],
+    risks: ["1 is earlier stage"],
+  };
+  const app = (over: Partial<ComparableApp>): ComparableApp => ({
+    id: 1, company: "Globex", roleTitle: "AI Engineer", payMin: 200000, payMax: 200000,
+    payCurrency: "USD", payPeriod: "year", bonus: null, benefits: null, locationMode: "remote",
+    location: null, employmentType: "full-time", seniorityLevel: "Senior", techStack: "TS",
+    companySize: null, companyStage: null, industry: null, interestRating: 4, pros: "team", cons: null,
+    ...over,
+  });
+
+  it("returns a schema-validated verdict and lists applicationIds in the prompt", async () => {
+    mockComplete.mockResolvedValue(JSON.stringify(VERDICT));
+    const out = await generateOfferComparison({
+      userId: globalThis.__testUserId,
+      applications: [app({ id: 1 }), app({ id: 2, company: "Initech" })],
+    });
+    expect(out.recommendation.applicationId).toBe(1);
+    expect(out.ranking).toHaveLength(2);
+    const content = mockComplete.mock.calls[0][0].messages[0].content;
+    expect(content).toMatch(/applicationId 1/);
+    expect(content).toMatch(/applicationId 2/);
+  });
+
+  it("passes benefits documents through to complete and mentions priorities", async () => {
+    mockComplete.mockResolvedValue(JSON.stringify(VERDICT));
+    await generateOfferComparison({
+      userId: globalThis.__testUserId,
+      applications: [app({ id: 1 }), app({ id: 2 })],
+      priorities: "remote first",
+      benefitsDocs: [{ name: "b.pdf", mediaType: "application/pdf", data: "QkFTRTY0" }],
+    });
+    const opts = mockComplete.mock.calls[0][0];
+    expect(opts.documents).toHaveLength(1);
+    expect(opts.documents![0].name).toBe("b.pdf");
+    expect(opts.messages[0].content).toMatch(/remote first/);
   });
 });

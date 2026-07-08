@@ -13,6 +13,7 @@ const NAV = [
   { href: "/calendar", label: "Calendar", primary: true, icon: "📅" },
   { href: "/capture", label: "New application", primary: true, icon: "＋", short: "New" },
   { href: "/analytics", label: "Analytics", primary: true, icon: "📊" },
+  { href: "/offers", label: "Offers", icon: "⚖️" },
   { href: "/profile", label: "Career profile", icon: "👤" },
   { href: "/contacts", label: "Contacts", icon: "📇" },
   { href: "/settings", label: "Settings", icon: "⚙️" },
