@@ -41,6 +41,24 @@ export function fmtRelative(d: string | Date | null | undefined): string {
   return fmtDate(date);
 }
 
+// Convert a stored ISO timestamp to the `YYYY-MM-DDTHH:mm` shape a datetime-local input
+// wants, in the viewer's local time. Returns "" when there's no scheduled time.
+export function toDateTimeLocal(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// Inverse of toDateTimeLocal: turn the timezone-naive value of a datetime-local input
+// (e.g. "2026-07-08T14:30") into a true UTC instant. `new Date(naive)` interprets the
+// string in the runtime's local zone — on the client that's the user's browser zone — so
+// this must run client-side to capture the intended instant. Returns null for empty input.
+export function fromDateTimeLocal(local: string): string | null {
+  return local ? new Date(local).toISOString() : null;
+}
+
 export async function api<T>(url: string, opts?: RequestInit): Promise<T> {
   const res = await fetch(url, {
     ...opts,
