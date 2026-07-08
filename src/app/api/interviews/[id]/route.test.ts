@@ -28,6 +28,29 @@ describe("interviews", () => {
     expect(updated.outcome).toBe("passed");
   });
 
+  it("stores scheduledAt as the exact instant it receives", async () => {
+    const appId = await insertApp();
+    const [iv] = await db
+      .insert(schema.interviews)
+      .values({ userId: globalThis.__testUserId, applicationId: appId, round: "Screen" })
+      .returning({ id: schema.interviews.id });
+    const instant = "2026-07-08T18:30:00.000Z";
+    await PATCH(req(`/api/interviews/${iv.id}`, "PATCH", { scheduledAt: instant }), ctx(iv.id));
+    const [updated] = await db.select().from(schema.interviews).where(eq(schema.interviews.id, iv.id)).limit(1);
+    expect(updated.scheduledAt?.toISOString()).toBe(instant);
+  });
+
+  it("clears scheduledAt when sent null", async () => {
+    const appId = await insertApp();
+    const [iv] = await db
+      .insert(schema.interviews)
+      .values({ userId: globalThis.__testUserId, applicationId: appId, scheduledAt: new Date("2026-07-08T18:30:00.000Z") })
+      .returning({ id: schema.interviews.id });
+    await PATCH(req(`/api/interviews/${iv.id}`, "PATCH", { scheduledAt: null }), ctx(iv.id));
+    const [updated] = await db.select().from(schema.interviews).where(eq(schema.interviews.id, iv.id)).limit(1);
+    expect(updated.scheduledAt).toBeNull();
+  });
+
   it("deletes an interview", async () => {
     const appId = await insertApp();
     const [iv] = await db

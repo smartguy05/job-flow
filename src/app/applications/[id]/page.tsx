@@ -5,7 +5,7 @@ import { useParams, useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { StatusBadge } from "@/components/StatusBadge";
 import { JobDetailsPanel } from "@/components/JobDetailsPanel";
-import { api, fmtDate, fmtRelative, STATUS_LABELS, STATUS_ORDER } from "@/lib/ui";
+import { api, fmtDate, fmtRelative, STATUS_LABELS, STATUS_ORDER, toDateTimeLocal, fromDateTimeLocal } from "@/lib/ui";
 import { formatPay, type JobDetails } from "@/lib/job-fields";
 import type { InterviewPrepPack } from "@/lib/interview-prep-content";
 
@@ -272,7 +272,7 @@ function InterviewSection({
   async function add() {
     await api(`/api/applications/${applicationId}/interviews`, {
       method: "POST",
-      body: JSON.stringify({ round, scheduledAt: when || null, interviewer, prepNotes: prep }),
+      body: JSON.stringify({ round, scheduledAt: fromDateTimeLocal(when), interviewer, prepNotes: prep }),
     });
     setAdding(false); setRound(""); setWhen(""); setInterviewer(""); setPrep("");
     onChange();
@@ -320,16 +320,6 @@ function InterviewSection({
   );
 }
 
-// Convert a stored ISO timestamp to the `YYYY-MM-DDTHH:mm` shape a datetime-local input wants,
-// in the viewer's local time. Returns "" when there's no scheduled time.
-function toDateTimeLocal(iso: string | null): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
 // A single interview card: summary + outcome, inline edit form, delete, and the prep/debrief
 // panels. Edits and deletes go through PATCH/DELETE /api/interviews/[id].
 function InterviewRow({
@@ -362,7 +352,7 @@ function InterviewRow({
   async function save() {
     await api(`/api/interviews/${iv.id}`, {
       method: "PATCH",
-      body: JSON.stringify({ round, scheduledAt: when || null, interviewer, prepNotes: prep }),
+      body: JSON.stringify({ round, scheduledAt: fromDateTimeLocal(when), interviewer, prepNotes: prep }),
     });
     setEditing(false);
     onChange();
