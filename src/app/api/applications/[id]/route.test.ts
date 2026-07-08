@@ -94,6 +94,21 @@ describe("PATCH /api/applications/[id]", () => {
     const [app] = await db.select().from(schema.applications).where(eq(schema.applications.id, id)).limit(1);
     expect(app.nextActionDate).toBeNull();
   });
+
+  it("sets appliedAt from an explicit date", async () => {
+    const id = await insertApp({ appliedAt: null });
+    await PATCH(req(`/api/applications/${id}`, "PATCH", { appliedAt: "2026-03-01" }), ctx(id));
+    const [app] = await db.select().from(schema.applications).where(eq(schema.applications.id, id)).limit(1);
+    expect(app.appliedAt).toBeInstanceOf(Date);
+    expect(app.appliedAt!.toISOString().slice(0, 10)).toBe("2026-03-01");
+  });
+
+  it("clears appliedAt when passed null", async () => {
+    const id = await insertApp({ appliedAt: new Date() });
+    await PATCH(req(`/api/applications/${id}`, "PATCH", { appliedAt: null }), ctx(id));
+    const [app] = await db.select().from(schema.applications).where(eq(schema.applications.id, id)).limit(1);
+    expect(app.appliedAt).toBeNull();
+  });
 });
 
 describe("DELETE /api/applications/[id]", () => {

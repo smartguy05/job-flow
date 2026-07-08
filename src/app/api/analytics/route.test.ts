@@ -33,6 +33,16 @@ describe("GET /api/analytics", () => {
     expect(body.interviewsScheduled).toBe(1);
   });
 
+  it("does not count expired applications as a response", async () => {
+    await insertApp({ status: "applied" });
+    await insertApp({ status: "expired" });
+    const body = await (await GET(req("/api/analytics"))).json();
+    expect(body.total).toBe(2);
+    // Neither app moved past "applied" in a meaningful way — expired ≠ responded.
+    expect(body.responseRate).toBe(0);
+    expect(body.byStatus.expired).toBe(1);
+  });
+
   it("computes average base pay from the midpoint of ranges and counts by source", async () => {
     await insertApp({ payMin: 100000, payMax: 200000, sourceChannel: "recruiter" }); // midpoint 150k
     await insertApp({ payMin: 200000, payMax: 200000, sourceChannel: "recruiter" }); // midpoint 200k

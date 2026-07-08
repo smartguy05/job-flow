@@ -49,6 +49,16 @@ describe("POST /api/applications", () => {
     expect(app.appliedAt).toBeNull();
   });
 
+  it("records an explicit appliedAt date instead of today", async () => {
+    const res = await POST(
+      req("/api/applications", "POST", { company: "Z", roleTitle: "Dev", markApplied: true, appliedAt: "2026-02-15" }),
+    );
+    const { id } = await res.json();
+    const [app] = await db.select().from(schema.applications).where(eq(schema.applications.id, id)).limit(1);
+    expect(app.appliedAt).toBeInstanceOf(Date);
+    expect(app.appliedAt!.toISOString().slice(0, 10)).toBe("2026-02-15");
+  });
+
   it("persists the rich detail fields and coerces date strings", async () => {
     const res = await POST(
       req("/api/applications", "POST", {

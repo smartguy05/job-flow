@@ -24,15 +24,34 @@ The POST has no user session, so it iterates **every user** with open applicatio
 each owner's own settings:
 
 1. Collect distinct `userId`s from open (`applied`/`in_progress`) applications.
-2. Per user, `candidatesForUser(userId, reminderQuietDays)` finds:
+2. Per user, expire stale applications first (see below), then
+   `candidatesForUser(userId, reminderQuietDays)` finds:
    - **quiet** — `lastActivityAt` older than the user's quiet window (default 7 days) and
-     not already reminded since the last activity; and
+     not reminded within that window; and
    - **next_action_due** — `nextActionDate` in the past.
-3. For each candidate, `sendNtfy(userId, …)` posts to that user's ntfy topic, sets
-   `lastRemindedAt`, and logs a `reminder_sent` event.
+3. For each candidate, `sendNtfy(userId, …)` posts to that user's ntfy topic and sets
+   `lastRemindedAt`. The `reminder_sent` event is recorded **without** bumping
+   `lastActivityAt` — a system nudge is not user activity, so it must not reset the
+   inactivity clock that drives expiry (below).
 
 Quiet-window and ntfy settings are per-user (see [configuration](../operations/configuration.md)
 for how settings vs. secrets are split).
+
+## Auto-expiry (`src/lib/expiry.ts`)
+
+`expireStaleApplications(userId, days)` moves a user's open (`applied`/`in_progress`)
+applications to the terminal **`expired`** status once `lastActivityAt` is older than
+`expireApplicationsAfterDays` (default 30; `0` disables). It updates `status` and inserts an
+`expired` event **without** bumping `lastActivityAt`, so the list keeps showing the true
+last-active date. Expired applications drop out of the reminder sweep and "needs attention"
+view automatically (both filter to open statuses), and the user can revive one by changing
+its status back via the detail page.
+
+The sweep runs in two places so it works with or without the external cron:
+
+- the reminder **cron POST** runs it per user before the reminder loop; and
+- the applications **list `GET /api/applications`** runs it lazily for the current user, so
+  the dashboard reflects expiry immediately on load.
 
 ## Notifications (`src/lib/ntfy.ts`)
 
@@ -45,7 +64,8 @@ uses `APP_BASE_URL`. `POST /api/settings/test-ntfy` sends a test push for the cu
 Aggregates the signed-in user's applications into: total, counts by status, response rate,
 interview rate, closed won/lost, interviews scheduled, resumes generated/sent, applications
 per month, average base pay (range midpoints), and counts by source channel. Queries
-project only the columns needed (no file blobs).
+project only the columns needed (no file blobs). `expired` applications are excluded from
+the "responded" count (a dead application never progressed).
 
 ## Related
 

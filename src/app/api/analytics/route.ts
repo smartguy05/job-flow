@@ -22,7 +22,8 @@ export async function GET(req: NextRequest) {
   for (const a of apps) byStatus[a.status] = (byStatus[a.status] ?? 0) + 1;
 
   const withInterview = new Set(interviews.map((i) => i.applicationId));
-  const responded = apps.filter((a) => a.status !== "applied").length;
+  // Expired apps died without progressing, so they don't count as a response.
+  const responded = apps.filter((a) => a.status !== "applied" && a.status !== "expired").length;
   const sentResumes = resumes.filter((r) => r.sentAt).length;
 
   // Applications per month (by createdAt).

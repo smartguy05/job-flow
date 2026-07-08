@@ -80,7 +80,7 @@ export const applications = pgTable(
     sourceRaw: text("source_raw"), // original pasted message/JD
     jdSnapshot: text("jd_snapshot"), // cleaned job description at capture time
     contactId: integer("contact_id").references(() => contacts.id, { onDelete: "set null" }),
-    status: text("status").notNull().default("applied"), // applied | in_progress | closed_won | closed_lost
+    status: text("status").notNull().default("applied"), // applied | in_progress | closed_won | closed_lost | expired
     notes: text("notes"),
 
     // --- Compensation ---

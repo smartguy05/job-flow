@@ -22,10 +22,10 @@ See [OIDC flow](../auth/oidc-flow.md).
 
 | Method / Path | Purpose |
 |---|---|
-| `GET /api/applications` | List (with contact + resume count). |
-| `POST /api/applications` | Create. Body: `roleTitle` (req), `company?`, `contactId?`/`contactName?`, detail fields, `markApplied?`. → `{ id }`. |
+| `GET /api/applications` | List (with contact + resume count). Lazily expires the caller's stale applications first. |
+| `POST /api/applications` | Create. Body: `roleTitle` (req), `company?`, `contactId?`/`contactName?`, detail fields, `appliedAt?` (ISO date) or `markApplied?` (today). → `{ id }`. |
 | `GET /api/applications/[id]` | Full detail: app, contact, resume summaries (`hasDocx`/`hasPdf`), interviews, drafts, events. |
-| `PATCH /api/applications/[id]` | Partial update; status change logs an event. |
+| `PATCH /api/applications/[id]` | Partial update; accepts `appliedAt` (ISO date, or `null` to clear); status change logs an event. |
 | `DELETE /api/applications/[id]` | Delete (children cascade). |
 | `POST /api/applications/[id]/generate` | Generate a tailored resume version → `{ resumeId }`. 404 if app not owned. |
 | `POST /api/applications/[id]/drafts` | Generate + store a draft. Body: `type` (`reply`\|`cover_letter`\|`follow_up`), `extra?`. |
@@ -112,7 +112,7 @@ See [configuration](../operations/configuration.md).
 
 | Method / Path | Auth | Purpose |
 |---|---|---|
-| `POST /api/cron/reminders` | `x-cron-secret` (if set) | Sweep all users; push follow-up reminders. Middleware-exempt. |
+| `POST /api/cron/reminders` | `x-cron-secret` (if set) | Sweep all users: expire stale applications, then push follow-up reminders. Middleware-exempt. |
 | `GET /api/cron/reminders` | user | In-app "needs attention" preview for the current user. |
 
 See [reminders & analytics](../features/reminders-and-analytics.md).

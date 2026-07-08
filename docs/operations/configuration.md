@@ -42,6 +42,7 @@ Managed via `GET/PUT /api/settings` and `src/lib/settings.ts` (`AppSettings`,
 | `transcriptionModel` | `whisper-1` | OpenAI audio-transcription model for interview debriefs (uses `OPENAI_API_KEY` regardless of `provider`). |
 | `dedupWindowDays` | `30` | Duplicate-detection window. |
 | `reminderQuietDays` | `7` | Quiet period before a follow-up reminder. |
+| `expireApplicationsAfterDays` | `30` | Auto-expire an open application after this many days with no activity (`0` disables). |
 | `ntfyUrl` | `""` | ntfy topic URL for reminders. |
 | `ntfyEnabled` | `false` | Whether reminders are pushed. |
 | `subtitleDefault` | *(a role subtitle)* | Default resume subtitle. |

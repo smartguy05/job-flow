@@ -4,11 +4,17 @@ import { desc, eq, and } from "drizzle-orm";
 import { normalizeCompany } from "@/lib/dedup";
 import { logEvent } from "@/lib/events";
 import { detailFields } from "@/lib/application-fields";
+import { getSettings } from "@/lib/settings";
+import { expireStaleApplications } from "@/lib/expiry";
 import { getUser, unauthorized } from "@/lib/auth";
 
 export async function GET(req: NextRequest) {
   const user = await getUser(req);
   if (!user) return unauthorized();
+
+  // Lazily expire stale applications so the dashboard reflects expiry even without the cron.
+  const s = await getSettings(user.id);
+  await expireStaleApplications(user.id, s.expireApplicationsAfterDays);
 
   const apps = await db
     .select()
@@ -82,7 +88,7 @@ export async function POST(req: NextRequest) {
       contactId,
       status: body.status ?? "applied",
       notes: body.notes ?? null,
-      appliedAt: body.markApplied ? new Date() : null,
+      appliedAt: body.appliedAt ? new Date(body.appliedAt) : body.markApplied ? new Date() : null,
       ...detailFields(body),
     })
     .returning({ id: schema.applications.id });

@@ -23,15 +23,26 @@ same user to the same normalized company and a similar role (Jaccard token simil
 ## Applications (`/api/applications`, `/api/applications/[id]`)
 
 - `GET /api/applications` — list with joined contact and a resume count (counts avoid
-  pulling file blobs into memory).
+  pulling file blobs into memory). Lazily expires the current user's stale applications
+  first (see [auto-expiry](reminders-and-analytics.md#auto-expiry-srclibexpiryts)).
 - `POST /api/applications` — create; company is optional (recruiters often withhold it).
   Can auto-create a contact from `contactName`; a supplied `contactId` is validated to
-  belong to the user. Logs a `created` event.
+  belong to the user. The applied date comes from an explicit `appliedAt` (ISO date) when
+  provided, else the `markApplied` "today" flag. Logs a `created` event.
 - `GET /api/applications/[id]` — full detail: application, contact, resume **summaries**
   (blob columns projected out to `hasDocx`/`hasPdf` booleans), interviews, drafts, events.
-- `PATCH` — partial update; a status change logs a `status_change` event and sets
-  `appliedAt` when moving off `applied`.
+- `PATCH` — partial update; accepts an explicit `appliedAt` (ISO date, or `null` to clear),
+  so the applied date is editable on the detail page's Job-details panel. A status change
+  logs a `status_change` event and backfills `appliedAt` when moving off `applied`.
 - `DELETE` — scoped to the user; children removed via FK cascade.
+
+### Statuses
+
+`applied` → `in_progress` → `closed_won` / `closed_lost`, plus the terminal `expired` set
+automatically by [auto-expiry](reminders-and-analytics.md#auto-expiry-srclibexpiryts) after a
+configurable inactivity window. Any status is reachable from the detail page's status
+dropdown, so an expired application can be revived by changing it back. Status metadata
+(labels, ordering, colors) lives in `src/lib/ui.ts`.
 
 Rich detail fields (compensation, location, seniority, tech stack, logistics, personal
 ratings) are mapped by `detailFields()` in `src/lib/application-fields.ts`.
@@ -83,9 +94,11 @@ draft is stored and a `note` event logged.
 
 `logEvent(userId, applicationId, type, detail?)` inserts an `events` row **and** bumps the
 application's `lastActivityAt`/`updatedAt`. Event types: `created`, `status_change`,
-`resume_generated`, `resume_final`, `resume_sent`, `interview`, `note`, `reminder_sent`.
-The timeline powers the detail page and the [reminders & analytics](reminders-and-analytics.md)
-features.
+`resume_generated`, `resume_final`, `resume_sent`, `interview`, `note`, `reminder_sent`,
+`expired`. The `reminder_sent` and `expired` events are inserted **directly** (not via
+`logEvent`) so they do **not** bump `lastActivityAt` — a system nudge and the expiry flip
+itself are not user activity and must not reset the inactivity clock. The timeline powers the
+detail page and the [reminders & analytics](reminders-and-analytics.md) features.
 
 ## Contacts (`/api/contacts`)
 

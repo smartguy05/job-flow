@@ -24,7 +24,7 @@ from, and the [API reference](../api/reference.md) for per-route behavior.
 | `users` | `id uuid` (PK), `sub` unique | Provisioned on first OIDC login; `sub` is the OIDC subject. `calendar_token` (nullable, unique) is the per-user token for the subscribable calendar feed, minted on first enable. |
 | `settings` | `(userId, key)` PK | Per-user key/value (JSON-encoded values). |
 | `contacts` | `id` identity | Recruiters/contacts. |
-| `applications` | `id` identity | The core record (~40 columns). |
+| `applications` | `id` identity | The core record (~40 columns). `status` (`text`) is one of `applied` \| `in_progress` \| `closed_won` \| `closed_lost` \| `expired`; `appliedAt` is the user-settable applied date; `lastActivityAt` drives reminders + auto-expiry. |
 | `resumes` | `id` identity | Generated resume versions + file bytes. |
 | `interviews` | `id` identity | Interview rounds per application, plus an optional post-interview debrief (`transcript`, `debrief_questions`/`debrief_answers`/`debrief_action_items` as JSON `text`, `debrief_summary`, `debrief_sentiment` JSON, `debrief_at`). Audio is transcribed and discarded — no audio bytes are stored. |
 | `events` | `id` identity | Activity log (timeline + analytics). |

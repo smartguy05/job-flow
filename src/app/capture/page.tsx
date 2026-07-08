@@ -41,6 +41,7 @@ export default function CapturePage() {
   const [form, setForm] = useState<Extracted | null>(null);
   const [genResume, setGenResume] = useState(true);
   const [markApplied, setMarkApplied] = useState(true);
+  const [appliedDate, setAppliedDate] = useState(new Date().toISOString().slice(0, 10));
   const [saving, setSaving] = useState(false);
 
   async function extract() {
@@ -69,7 +70,7 @@ export default function CapturePage() {
     try {
       const { id } = await api<{ id: number }>("/api/applications", {
         method: "POST",
-        body: JSON.stringify({ ...form, sourceRaw: text, markApplied }),
+        body: JSON.stringify({ ...form, sourceRaw: text, markApplied, appliedAt: markApplied ? appliedDate : null }),
       });
       if (genResume) {
         // Fire generation, then route to detail (generation continues server-side).
@@ -273,8 +274,10 @@ export default function CapturePage() {
               </label>
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={markApplied} onChange={(e) => setMarkApplied(e.target.checked)} />
-                Mark as applied today
+                Mark as applied
               </label>
+              <input className="input w-auto" type="date" value={appliedDate} disabled={!markApplied}
+                onChange={(e) => setAppliedDate(e.target.value)} />
             </div>
             <div className="flex gap-2">
               <button className="btn btn-primary" disabled={saving} onClick={save}>
