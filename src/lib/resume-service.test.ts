@@ -34,8 +34,8 @@ async function makeApp() {
   return row;
 }
 
-function render(pageCount: number) {
-  return { docx: Buffer.from("docx"), pdf: Buffer.from("pdf"), pageCount };
+function render(pageCount: number, lastPageFill = 0.85) {
+  return { docx: Buffer.from("docx"), pdf: Buffer.from("pdf"), pageCount, lastPageFill };
 }
 
 beforeEach(() => {
@@ -82,11 +82,42 @@ describe("createResumeForApplication", () => {
     expect(mockAdjust.mock.calls[0][2]).toBe("condense");
   });
 
-  it("sets a fitWarning and stops after 2 attempts when it never reaches 2 pages", async () => {
+  it("expands when 2 pages but the last page is under-filled, then settles", async () => {
+    const app = await makeApp();
+    mockRender.mockResolvedValueOnce(render(2, 0.45)).mockResolvedValueOnce(render(2, 0.9));
+
+    const resumeId = await createResumeForApplication(userId(), app.id);
+    expect(mockAdjust).toHaveBeenCalledOnce();
+    expect(mockAdjust.mock.calls[0][2]).toBe("expand");
+    expect(mockAdjust.mock.calls[0][4]).toBe(0.45); // fill ratio is passed through
+    const [resume] = await db.select().from(schema.resumes).where(eq(schema.resumes.id, resumeId)).limit(1);
+    expect(resume.pageCount).toBe(2);
+    expect(resume.fitWarning).toBeNull();
+  });
+
+  it("does not adjust when the first render is 2 full pages", async () => {
+    const app = await makeApp();
+    mockRender.mockResolvedValue(render(2, 0.9));
+    const resumeId = await createResumeForApplication(userId(), app.id);
+    expect(mockAdjust).not.toHaveBeenCalled();
+    const [resume] = await db.select().from(schema.resumes).where(eq(schema.resumes.id, resumeId)).limit(1);
+    expect(resume.fitWarning).toBeNull();
+  });
+
+  it("warns about an under-filled last page when it never fills", async () => {
+    const app = await makeApp();
+    mockRender.mockResolvedValue(render(2, 0.4)); // stays 2 pages but half-empty
+    const resumeId = await createResumeForApplication(userId(), app.id);
+    expect(mockAdjust).toHaveBeenCalledTimes(3);
+    const [resume] = await db.select().from(schema.resumes).where(eq(schema.resumes.id, resumeId)).limit(1);
+    expect(resume.fitWarning).toMatch(/only 40% full/);
+  });
+
+  it("sets a fitWarning and stops after 3 attempts when it never reaches 2 pages", async () => {
     const app = await makeApp();
     mockRender.mockResolvedValue(render(1)); // never converges
     const resumeId = await createResumeForApplication(userId(), app.id);
-    expect(mockAdjust).toHaveBeenCalledTimes(2);
+    expect(mockAdjust).toHaveBeenCalledTimes(3);
     const [resume] = await db.select().from(schema.resumes).where(eq(schema.resumes.id, resumeId)).limit(1);
     expect(resume.fitWarning).toMatch(/1 pages/);
   });
@@ -112,7 +143,7 @@ describe("rerenderResume", () => {
     const resumeId = await createResumeForApplication(userId(), app.id);
 
     mockRender.mockClear();
-    mockRender.mockResolvedValue({ docx: Buffer.from("new-docx"), pdf: Buffer.from("new-pdf"), pageCount: 2 });
+    mockRender.mockResolvedValue({ docx: Buffer.from("new-docx"), pdf: Buffer.from("new-pdf"), pageCount: 2, lastPageFill: 0.85 });
     const edited = makeResumeContent({ summary: "hand-edited summary" });
     await rerenderResume(userId(), resumeId, edited);
 

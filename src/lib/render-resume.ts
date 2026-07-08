@@ -176,12 +176,43 @@ export async function getPdfPageCount(pdfPath: string): Promise<number> {
   }
 }
 
+// Fraction (0..1) of the last page occupied by content, from poppler `pdftotext -bbox`
+// XHTML. pdfinfo only reports whole pages, so a resume that fills ~1.4 pages still reports
+// 2 pages; this measures how far down the final page the text actually reaches so the fit
+// loop can tell a full second page from a nearly-empty one. Returns 0 for an empty last page.
+export function lastPageFillFromBbox(xml: string): number {
+  const pages = xml.match(/<page\b[^>]*>[\s\S]*?<\/page>/g);
+  if (!pages || pages.length === 0) return 0;
+  const last = pages[pages.length - 1];
+  const heightMatch = last.match(/height="([\d.]+)"/);
+  const height = heightMatch ? parseFloat(heightMatch[1]) : 0;
+  if (!height) return 0;
+  let maxY = 0;
+  for (const m of last.matchAll(/yMax="([\d.]+)"/g)) {
+    const y = parseFloat(m[1]);
+    if (y > maxY) maxY = y;
+  }
+  if (maxY <= 0) return 0;
+  return Math.min(1, maxY / height);
+}
+
+// Runs `pdftotext -bbox` and returns the last page's fill fraction. On any failure returns
+// 1 (assume full) so the fit loop never expands forever when the tool is unavailable.
+export async function getPdfLastPageFill(pdfPath: string): Promise<number> {
+  try {
+    const { stdout } = await execFileP("pdftotext", ["-bbox", pdfPath, "-"]);
+    return lastPageFillFromBbox(stdout);
+  } catch {
+    return 1;
+  }
+}
+
 // Renders content -> docx + pdf bytes. soffice needs real files, so this uses a private
 // temp workspace (cleaned up in finally) and returns the bytes for storage in the DB.
 export async function renderResume(
   content: ResumeContent,
   baseName: string,
-): Promise<{ docx: Buffer; pdf: Buffer; pageCount: number }> {
+): Promise<{ docx: Buffer; pdf: Buffer; pageCount: number; lastPageFill: number }> {
   const work = await fs.mkdtemp(path.join(os.tmpdir(), "resume-"));
   // Private LO profile dir so concurrent conversions don't collide on the default lock.
   const profileDir = await fs.mkdtemp(path.join(os.tmpdir(), "lo-"));
@@ -199,9 +230,12 @@ export async function renderResume(
     ], { timeout: 60000 });
 
     const pdfPath = path.join(work, `${baseName}.pdf`);
-    const pageCount = await getPdfPageCount(pdfPath);
+    const [pageCount, lastPageFill] = await Promise.all([
+      getPdfPageCount(pdfPath),
+      getPdfLastPageFill(pdfPath),
+    ]);
     const pdf = await fs.readFile(pdfPath);
-    return { docx: Buffer.isBuffer(docx) ? docx : Buffer.from(docx), pdf, pageCount };
+    return { docx: Buffer.isBuffer(docx) ? docx : Buffer.from(docx), pdf, pageCount, lastPageFill };
   } finally {
     await fs.rm(work, { recursive: true, force: true });
     await fs.rm(profileDir, { recursive: true, force: true });
