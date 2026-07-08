@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { api } from "@/lib/ui";
-import { LOCATION_MODES, EMPLOYMENT_TYPES, PAY_PERIODS, type JobDetails } from "@/lib/job-fields";
+import { LOCATION_MODES, EMPLOYMENT_TYPES, PAY_PERIODS, pickJobDetails, type JobDetails } from "@/lib/job-fields";
 
 type Props = { applicationId: number; initial: Partial<JobDetails>; onSaved: () => void };
 
@@ -47,7 +47,9 @@ export function JobDetailsPanel({ applicationId, initial, onSaved }: Props) {
   async function save() {
     setBusy(true);
     try {
-      await api(`/api/applications/${applicationId}`, { method: "PATCH", body: JSON.stringify(d) });
+      // Send only the fields this form owns — never foreign columns like `notes`
+      // (edited by the sidebar) that rode along in `initial` and would clobber it.
+      await api(`/api/applications/${applicationId}`, { method: "PATCH", body: JSON.stringify(pickJobDetails(d)) });
       setMsg("Saved.");
       setTimeout(() => setMsg(""), 1500);
       onSaved();

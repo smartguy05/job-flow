@@ -33,6 +33,29 @@ export const LOCATION_MODES = ["remote", "hybrid", "onsite"];
 export const EMPLOYMENT_TYPES = ["full-time", "contract", "contract-to-hire", "part-time"];
 export const PAY_PERIODS = ["year", "hour"];
 
+// The fields the job-details form owns. Anything else on an application detail
+// object (notes, jdSnapshot, company, status, contact, …) belongs to a different
+// editor and must not be echoed back by this form.
+export const JOB_DETAIL_KEYS: (keyof JobDetails)[] = [
+  "payMin", "payMax", "payCurrency", "payPeriod", "bonus", "benefits", "locationMode",
+  "location", "employmentType", "seniorityLevel", "techStack", "companySize", "companyStage",
+  "industry", "sourceChannel", "appliedAt", "datePosted", "applicationDeadline", "postingId",
+  "referralName", "interestRating", "pros", "cons", "nextAction", "nextActionDate",
+];
+
+// Returns only the JobDetails keys present in `source`, so the details form never
+// submits (and clobbers) columns it doesn't own. An explicit `null` is preserved
+// (a field can still be cleared); an absent key is omitted, not set to `undefined`.
+export function pickJobDetails(source: Record<string, unknown>): Partial<JobDetails> {
+  const out: Partial<JobDetails> = {};
+  for (const k of JOB_DETAIL_KEYS) {
+    if (k in source && source[k] !== undefined) {
+      (out as Record<string, unknown>)[k] = source[k];
+    }
+  }
+  return out;
+}
+
 export function formatPay(d: {
   payMin?: number | null;
   payMax?: number | null;
