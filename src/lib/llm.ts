@@ -156,19 +156,30 @@ export async function refineResumeContent(input: {
   return ResumeContentSchema.parse(parseJson<unknown>(text));
 }
 
-// Nudge the model to expand or condense to hit exactly 2 pages.
+// Nudge the model to expand or condense to hit two full pages. `lastPageFill` (0..1) is the
+// fraction of the final page occupied by content; it lets the expand instruction describe an
+// under-filled second page accurately instead of implying the resume is only one page.
 export async function adjustForLength(
   userId: string,
   current: ResumeContent,
   direction: "expand" | "condense",
   pageCount: number,
+  lastPageFill?: number,
 ): Promise<ResumeContent> {
   const careerInfo = await getCareerInfo(userId);
+  const fillPct = lastPageFill != null ? Math.round(lastPageFill * 100) : null;
+  const expandInstruction =
+    pageCount === 2
+      ? `The rendered resume spills onto a second page but fills only ~${fillPct ?? "<70"}% of it; it must be two ` +
+        `full pages with the second page at least 70% full. Expand bullets with more specific verified detail ` +
+        `(metrics, technologies, outcomes), add a 4th project if appropriate, and lengthen the summary and ` +
+        `Why-Company section until the second page is full. Do not fabricate.`
+      : `The rendered resume is only ${pageCount} page(s); it must be exactly 2 full pages. Expand bullets with more ` +
+        `specific verified detail (metrics, technologies, outcomes), add a 4th project if appropriate, and lengthen ` +
+        `the summary and Why-Company section. Do not fabricate.`;
   const instruction =
     direction === "expand"
-      ? `The rendered resume is only ${pageCount} page(s); it must be exactly 2 full pages. Expand bullets with more ` +
-        `specific verified detail (metrics, technologies, outcomes), add a 4th project if appropriate, and lengthen ` +
-        `the summary and Why-Company section. Do not fabricate.`
+      ? expandInstruction
       : `The rendered resume is ${pageCount} pages; it must be exactly 2 pages. Condense: reduce older jobs' bullets, ` +
         `shorten project and Why-Company text. Keep the most relevant, verified content.`;
   const text = await complete({

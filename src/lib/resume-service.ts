@@ -5,6 +5,11 @@ import { renderResume } from "./render-resume";
 import type { ResumeContent } from "./resume-content";
 import { logEvent } from "./events";
 
+// The last page must be at least this full for the resume to count as a proper two pages.
+// pdfinfo only reports whole pages, so without this a resume that spills a single line onto
+// page 2 would be treated as a perfect 2-page fit. Matches the resume skill's 70% rule.
+const MIN_LAST_PAGE_FILL = 0.7;
+
 function slug(s: string) {
   return s.replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "") || "resume";
 }
@@ -14,26 +19,40 @@ function baseNameFor(content: ResumeContent, company: string, version: number): 
   return `${slug(content.contact.name)}_Resume_${slug(company)}_v${version}`;
 }
 
-// Render content, looping up to 2 tries to reach exactly 2 pages.
+// A render fits when it's exactly two pages AND the second page is well-filled — not a
+// single line spilling onto an otherwise-empty page 2 (which pdfinfo still counts as 2).
+function fitsTwoPages(r: { pageCount: number; lastPageFill: number }): boolean {
+  return r.pageCount === 2 && r.lastPageFill >= MIN_LAST_PAGE_FILL;
+}
+
+// Render content, looping up to 3 tries to reach two well-filled pages.
 async function renderWithPageFit(
   userId: string,
   version: number,
   company: string,
   content: ResumeContent,
-): Promise<{ content: ResumeContent; baseName: string; docx: Buffer; pdf: Buffer; pageCount: number; fitWarning: string | null }> {
+): Promise<{ content: ResumeContent; baseName: string; docx: Buffer; pdf: Buffer; pageCount: number; lastPageFill: number; fitWarning: string | null }> {
   let current = content;
   let baseName = baseNameFor(current, company, version);
   let result = await renderResume(current, baseName);
 
   let attempts = 0;
-  while (result.pageCount !== 2 && attempts < 2) {
-    const direction = result.pageCount < 2 ? "expand" : "condense";
-    current = await adjustForLength(userId, current, direction, result.pageCount);
+  while (!fitsTwoPages(result) && attempts < 3) {
+    // Over two pages → condense; otherwise (one page, or an under-filled page 2) → expand.
+    const direction = result.pageCount > 2 ? "condense" : "expand";
+    current = await adjustForLength(userId, current, direction, result.pageCount, result.lastPageFill);
     baseName = baseNameFor(current, company, version);
     result = await renderResume(current, baseName);
     attempts++;
   }
-  const fitWarning = result.pageCount === 2 ? null : `Resume is ${result.pageCount} pages (target is 2).`;
+
+  let fitWarning: string | null = null;
+  if (!fitsTwoPages(result)) {
+    fitWarning =
+      result.pageCount === 2
+        ? `Resume is 2 pages but the last page is only ${Math.round(result.lastPageFill * 100)}% full (target ≥70%).`
+        : `Resume is ${result.pageCount} pages (target is 2).`;
+  }
   return { content: current, baseName, ...result, fitWarning };
 }
 

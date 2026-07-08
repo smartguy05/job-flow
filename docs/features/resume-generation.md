@@ -39,12 +39,18 @@ Each user supplies their own inputs (managed on the **Career profile** page,
    info and the target company/role/JD.
 3. **Render** — `renderResume(content, baseName)` (`src/lib/render-resume.ts`):
    - `buildDocx()` composes the DOCX (`docx` library).
-   - Writes to a **temp workspace**, shells to `soffice` (LibreOffice) to convert to PDF
-     and `pdfinfo` (poppler) for the page count, reads both files back as `Buffer`s, and
-     cleans up the temp dir. Returns `{ docx, pdf, pageCount }`.
-4. **2-page fit loop** — `renderWithPageFit()` re-renders up to 2 more times, calling
-   `adjustForLength(userId, content, "expand"|"condense", pageCount)` until the PDF is
-   exactly 2 pages; otherwise it stores a `fitWarning`.
+   - Writes to a **temp workspace**, shells to `soffice` (LibreOffice) to convert to PDF,
+     `pdfinfo` (poppler) for the page count, and `pdftotext -bbox` (poppler) for the
+     **last-page fill** — the fraction of the final page that content reaches, since
+     `pdfinfo` only reports whole pages. Reads both files back as `Buffer`s and cleans up
+     the temp dir. Returns `{ docx, pdf, pageCount, lastPageFill }`.
+4. **2-page fit loop** — `renderWithPageFit()` re-renders up to 3 more times, calling
+   `adjustForLength(userId, content, "expand"|"condense", pageCount, lastPageFill)` until
+   the PDF is **exactly 2 pages with the last page at least 70% full**
+   (`MIN_LAST_PAGE_FILL`). Over-length renders condense; a single page or an under-filled
+   page 2 expands. This prevents a resume that merely spills one line onto page 2 (which
+   `pdfinfo` still counts as 2 pages) from being treated as a complete two pages. If it
+   can't converge, it stores a `fitWarning` naming the page count or the last-page fill %.
 5. **Persist** — insert a `resumes` row with `userId`, incremented `version`,
    `contentJson`, `baseName`, and `docxData`/`pdfData` (`bytea`). Logs a
    `resume_generated` event.
