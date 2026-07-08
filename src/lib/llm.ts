@@ -347,7 +347,7 @@ export async function generateInterviewPrep(input: {
   const { application: app, interview } = input;
   const text = await complete({
     userId: input.userId,
-    maxTokens: 4000,
+    maxTokens: 8000,
     json: true,
     system:
       "You are an interview coach preparing a candidate for a specific interview round. Produce a " +

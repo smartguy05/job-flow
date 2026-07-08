@@ -23,6 +23,14 @@ function isReasoningModel(model: string): boolean {
   return /^(gpt-5|o\d)/i.test(model);
 }
 
+// The model stopped because it hit the output token cap, so the text is incomplete (and any
+// JSON in it won't parse). Surface an actionable error instead of returning the partial text.
+function truncatedError(maxTokens: number): Error {
+  return new Error(
+    `Model response was cut off at the ${maxTokens}-token limit; try again or raise maxTokens.`,
+  );
+}
+
 // Index of the last user message, where any attached documents are placed.
 function lastUserIndex(messages: LlmMessage[]): number {
   for (let i = messages.length - 1; i >= 0; i--) if (messages[i].role === "user") return i;
@@ -59,6 +67,7 @@ async function completeAnthropic(opts: CompleteOpts, model: string): Promise<str
     system: opts.system,
     messages,
   });
+  if (msg.stop_reason === "max_tokens") throw truncatedError(opts.maxTokens);
   return msg.content
     .filter((b): b is Anthropic.TextBlock => b.type === "text")
     .map((b) => b.text)
@@ -103,6 +112,7 @@ async function completeOpenAI(opts: CompleteOpts, model: string): Promise<string
   }
 
   const res = await client.chat.completions.create(params);
+  if (res.choices[0]?.finish_reason === "length") throw truncatedError(opts.maxTokens);
   return res.choices[0]?.message?.content ?? "";
 }
 

@@ -227,6 +227,8 @@ describe("generateInterviewPrep", () => {
     expect(content).toMatch(/Onsite/);
     expect(content).toMatch(/build LLM tools/);
     expect(mockComplete.mock.calls[0][0].json).toBe(true);
+    // Prep packs are large (STAR answers); ensure enough headroom to avoid truncation.
+    expect(mockComplete.mock.calls[0][0].maxTokens).toBe(8000);
   });
 
   it("rejects a malformed pack", async () => {

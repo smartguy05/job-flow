@@ -278,11 +278,6 @@ function InterviewSection({
     onChange();
   }
 
-  async function setOutcome(iid: number, outcome: string) {
-    await api(`/api/interviews/${iid}`, { method: "PATCH", body: JSON.stringify({ outcome }) });
-    onChange();
-  }
-
   // Whether audio upload is available (OpenAI key present). Paste always works.
   const [transcriptionReady, setTranscriptionReady] = useState(false);
   useEffect(() => {
@@ -311,32 +306,112 @@ function InterviewSection({
       ) : (
         <div className="flex flex-col gap-2">
           {interviews.map((iv) => (
-            <div key={iv.id} className="p-3 rounded-md" style={{ background: "var(--surface-2)" }}>
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div>
-                  <div className="font-semibold">{iv.round || "Interview"}</div>
-                  <div className="text-xs" style={{ color: "var(--muted)" }}>
-                    {fmtDate(iv.scheduledAt)}{iv.interviewer ? ` · ${iv.interviewer}` : ""}
-                  </div>
-                  {iv.prepNotes && <div className="text-sm mt-1">{iv.prepNotes}</div>}
-                </div>
-                <select className="select" style={{ width: "auto" }} value={iv.outcome ?? "pending"}
-                  onChange={(e) => setOutcome(iv.id, e.target.value)}>
-                  {["pending", "passed", "failed", "cancelled"].map((o) => <option key={o} value={o}>{o}</option>)}
-                </select>
-              </div>
-              <PrepPackPanel interview={iv} onChange={onChange} />
-              <DebriefPanel
-                applicationId={applicationId}
-                interview={iv}
-                transcriptionReady={transcriptionReady}
-                onChange={onChange}
-              />
-            </div>
+            <InterviewRow
+              key={iv.id}
+              applicationId={applicationId}
+              interview={iv}
+              transcriptionReady={transcriptionReady}
+              onChange={onChange}
+            />
           ))}
         </div>
       )}
     </section>
+  );
+}
+
+// Convert a stored ISO timestamp to the `YYYY-MM-DDTHH:mm` shape a datetime-local input wants,
+// in the viewer's local time. Returns "" when there's no scheduled time.
+function toDateTimeLocal(iso: string | null): string {
+  if (!iso) return "";
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+// A single interview card: summary + outcome, inline edit form, delete, and the prep/debrief
+// panels. Edits and deletes go through PATCH/DELETE /api/interviews/[id].
+function InterviewRow({
+  applicationId, interview: iv, transcriptionReady, onChange,
+}: {
+  applicationId: number;
+  interview: Detail["interviews"][number];
+  transcriptionReady: boolean;
+  onChange: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [round, setRound] = useState(iv.round ?? "");
+  const [when, setWhen] = useState(toDateTimeLocal(iv.scheduledAt));
+  const [interviewer, setInterviewer] = useState(iv.interviewer ?? "");
+  const [prep, setPrep] = useState(iv.prepNotes ?? "");
+
+  function startEdit() {
+    setRound(iv.round ?? "");
+    setWhen(toDateTimeLocal(iv.scheduledAt));
+    setInterviewer(iv.interviewer ?? "");
+    setPrep(iv.prepNotes ?? "");
+    setEditing(true);
+  }
+
+  async function setOutcome(outcome: string) {
+    await api(`/api/interviews/${iv.id}`, { method: "PATCH", body: JSON.stringify({ outcome }) });
+    onChange();
+  }
+
+  async function save() {
+    await api(`/api/interviews/${iv.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ round, scheduledAt: when || null, interviewer, prepNotes: prep }),
+    });
+    setEditing(false);
+    onChange();
+  }
+
+  async function del() {
+    if (!confirm("Delete this interview? This also removes its prep pack and debrief.")) return;
+    await api(`/api/interviews/${iv.id}`, { method: "DELETE" });
+    onChange();
+  }
+
+  return (
+    <div className="p-3 rounded-md" style={{ background: "var(--surface-2)" }}>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div>
+          <div className="font-semibold">{iv.round || "Interview"}</div>
+          <div className="text-xs" style={{ color: "var(--muted)" }}>
+            {fmtDate(iv.scheduledAt)}{iv.interviewer ? ` · ${iv.interviewer}` : ""}
+          </div>
+          {iv.prepNotes && <div className="text-sm mt-1">{iv.prepNotes}</div>}
+        </div>
+        <div className="flex items-center gap-2">
+          <select className="select" style={{ width: "auto" }} value={iv.outcome ?? "pending"}
+            onChange={(e) => setOutcome(e.target.value)}>
+            {["pending", "passed", "failed", "cancelled"].map((o) => <option key={o} value={o}>{o}</option>)}
+          </select>
+          <button className="btn btn-ghost text-xs" onClick={() => (editing ? setEditing(false) : startEdit())}>
+            {editing ? "Cancel" : "Edit"}
+          </button>
+          <button className="btn btn-ghost text-xs" onClick={del}>Delete</button>
+        </div>
+      </div>
+      {editing && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 p-3 rounded-md" style={{ background: "var(--surface-1)" }}>
+          <input className="input" placeholder="Round (e.g. Technical)" value={round} onChange={(e) => setRound(e.target.value)} />
+          <input className="input" type="datetime-local" value={when} onChange={(e) => setWhen(e.target.value)} />
+          <input className="input" placeholder="Interviewer" value={interviewer} onChange={(e) => setInterviewer(e.target.value)} />
+          <input className="input" placeholder="Prep notes" value={prep} onChange={(e) => setPrep(e.target.value)} />
+          <button className="btn btn-primary sm:col-span-2" onClick={save}>Save changes</button>
+        </div>
+      )}
+      <PrepPackPanel interview={iv} onChange={onChange} />
+      <DebriefPanel
+        applicationId={applicationId}
+        interview={iv}
+        transcriptionReady={transcriptionReady}
+        onChange={onChange}
+      />
+    </div>
   );
 }
 
