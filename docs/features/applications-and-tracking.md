@@ -34,6 +34,10 @@ same user to the same normalized company and a similar role (Jaccard token simil
 - `PATCH` — partial update; accepts an explicit `appliedAt` (ISO date, or `null` to clear),
   so the applied date is editable on the detail page's Job-details panel. A status change
   logs a `status_change` event and backfills `appliedAt` when moving off `applied`.
+- `PUT /api/applications/[id]/job-description` — set the tailoring job description
+  (`jdSnapshot`) after capture: paste/amend text, or upload the posting as a PDF/Word/text
+  file (extracted server-side). Logs a `jd_updated` event. See
+  [resume generation](resume-generation.md#job-description-input).
 - `DELETE` — scoped to the user; children removed via FK cascade.
 
 ### Statuses
