@@ -30,10 +30,28 @@ Each user supplies their own inputs (managed on the **Career profile** page,
 > **Correctness property:** never fabricate. Every claim in a generated resume must trace
 > to the assembled career info. Worth testing on any change here.
 
+## Job description input
+
+Tailoring is steered by the application's **job description** (`applications.jdSnapshot`,
+falling back to `sourceRaw`). It's captured on the New-application flow, but can also be
+added or amended later from the application detail page (**Job description** panel):
+
+- **Paste/amend** — edit the text and Save, or **Save & generate resume** in one step.
+- **Upload the posting** — a PDF, Word (`.docx`/`.doc`/`.odt`/`.rtf`), or text file. The
+  bytes are turned into plain text by `extractJobDescriptionText()`
+  (`src/lib/extract-text.ts`): text files are decoded directly, PDFs go through poppler
+  `pdftotext`, Office documents through LibreOffice `soffice`. Unsupported types are
+  rejected (400).
+
+Both paths hit `PUT /api/applications/[id]/job-description`, which writes `jdSnapshot` and
+logs a `jd_updated` event. The next generated resume version picks up the updated text —
+nothing is regenerated automatically.
+
 ## Generation pipeline
 
 1. `POST /api/applications/[id]/generate` → `createResumeForApplication(userId, appId)`
-   (`src/lib/resume-service.ts`), after verifying the application is owned.
+   (`src/lib/resume-service.ts`), after verifying the application is owned. Uses
+   `jdSnapshot || sourceRaw` as the target JD.
 2. `generateResumeContent(userId, job)` (`src/lib/llm.ts`) builds structured JSON validated
    by the Zod schema in `src/lib/resume-content.ts`, using the assembled skill + career
    info and the target company/role/JD.

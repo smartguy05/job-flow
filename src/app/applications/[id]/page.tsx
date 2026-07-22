@@ -9,6 +9,10 @@ import { api, fmtDate, fmtRelative, STATUS_LABELS, STATUS_ORDER, toDateTimeLocal
 import { formatPay, type JobDetails } from "@/lib/job-fields";
 import type { InterviewPrepPack } from "@/lib/interview-prep-content";
 
+// File types the job-description upload accepts. Kept in sync with JD_UPLOAD_ACCEPT in
+// src/lib/extract-text.ts (that module pulls in node built-ins, so it can't be imported here).
+const JD_UPLOAD_ACCEPT = ".txt,.md,.pdf,.doc,.docx,.odt,.rtf";
+
 type Detail = {
   id: number;
   company: string;
@@ -142,6 +146,14 @@ export default function ApplicationDetail() {
       <div className="grid md:grid-cols-3 gap-6">
         <div className="md:col-span-2 flex flex-col gap-6">
           <JobDetailsPanel applicationId={d.id} initial={d} onSaved={load} />
+
+          <JobDescriptionPanel
+            applicationId={d.id}
+            initialJd={d.jdSnapshot}
+            generating={busy === "generate" || generating}
+            onChange={load}
+            onGenerate={generate}
+          />
 
           {/* Resumes */}
           <section className="card p-5">
@@ -402,6 +414,104 @@ function InterviewRow({
         onChange={onChange}
       />
     </div>
+  );
+}
+
+// View, amend, or (re)upload the job description a resume is tailored from. Editing the text
+// or uploading a file (PDF/Word/text) saves it to the application's jdSnapshot via
+// PUT /api/applications/[id]/job-description; the next generated resume version uses it.
+function JobDescriptionPanel({
+  applicationId, initialJd, generating, onChange, onGenerate,
+}: {
+  applicationId: number;
+  initialJd: string | null;
+  generating: boolean;
+  onChange: () => void;
+  onGenerate: () => Promise<void>;
+}) {
+  const [jd, setJd] = useState(initialJd ?? "");
+  const [busy, setBusy] = useState("");
+  const [msg, setMsg] = useState("");
+
+  // Reflect external reloads (e.g. after an upload elsewhere) into the editable field.
+  useEffect(() => { setJd(initialJd ?? ""); }, [initialJd]);
+
+  const dirty = jd !== (initialJd ?? "");
+
+  async function save(): Promise<boolean> {
+    setBusy("save");
+    setMsg("");
+    try {
+      await api(`/api/applications/${applicationId}/job-description`, {
+        method: "PUT",
+        body: JSON.stringify({ jdSnapshot: jd }),
+      });
+      setMsg("Saved.");
+      setTimeout(() => setMsg(""), 1500);
+      onChange();
+      return true;
+    } catch (e) {
+      alert((e as Error).message);
+      return false;
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function upload(file: File) {
+    setBusy("upload");
+    setMsg("");
+    try {
+      const form = new FormData();
+      form.set("file", file);
+      const res = await fetch(`/api/applications/${applicationId}/job-description`, { method: "PUT", body: form });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Upload failed");
+      const body = await res.json();
+      setJd(body.jdSnapshot);
+      setMsg(`Loaded ${file.name}.`);
+      setTimeout(() => setMsg(""), 2000);
+      onChange();
+    } catch (e) {
+      alert((e as Error).message);
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function saveAndGenerate() {
+    if (dirty && !(await save())) return;
+    await onGenerate();
+  }
+
+  return (
+    <section className="card p-5 flex flex-col gap-3">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h2 className="font-semibold text-lg">Job description</h2>
+        <div className="flex items-center gap-3">
+          {msg && <span className="text-sm" style={{ color: "var(--success)" }}>{msg}</span>}
+          <label className="btn btn-ghost cursor-pointer" style={{ opacity: busy ? 0.5 : 1 }}>
+            {busy === "upload" ? "Extracting…" : "Upload file"}
+            <input type="file" accept={JD_UPLOAD_ACCEPT} className="hidden" disabled={!!busy}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = ""; }} />
+          </label>
+        </div>
+      </div>
+      <p className="text-xs" style={{ color: "var(--muted)" }}>
+        Used to tailor generated resumes. Paste or edit the text, or upload the posting
+        (PDF, Word, or text) — then generate a new resume version to use it.
+      </p>
+      <textarea className="textarea" rows={8} value={jd}
+        placeholder="Paste the job description here, or upload the posting above…"
+        onChange={(e) => setJd(e.target.value)} />
+      <div className="flex flex-wrap gap-2">
+        <button className="btn btn-ghost" disabled={busy === "save" || !dirty} onClick={save}>
+          {busy === "save" ? "Saving…" : "Save"}
+        </button>
+        <button className="btn btn-primary" disabled={!!busy || generating || !jd.trim()} onClick={saveAndGenerate}>
+          {generating ? "Generating…" : "Save & generate resume"}
+        </button>
+      </div>
+    </section>
   );
 }
 
