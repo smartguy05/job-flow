@@ -5,6 +5,14 @@ import Link from "next/link";
 import { StatusBadge } from "@/components/StatusBadge";
 import { api, fmtRelative, STATUS_LABELS, STATUS_ORDER } from "@/lib/ui";
 import { formatPay } from "@/lib/job-fields";
+import { filterApplications, type SortKey } from "@/lib/dashboard-filter";
+
+const SORT_LABELS: Record<SortKey, string> = {
+  activity: "Recent activity",
+  applied: "Date applied",
+  company: "Company A–Z",
+  interest: "Interest",
+};
 
 type AppRow = {
   id: number;
@@ -33,6 +41,10 @@ export default function Dashboard() {
   const [attention, setAttention] = useState<Attention[]>([]);
   const [filter, setFilter] = useState<string>("all");
   const [q, setQ] = useState("");
+  const [includeClosed, setIncludeClosed] = useState(false);
+  const [sort, setSort] = useState<SortKey>("activity");
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -44,10 +56,13 @@ export default function Dashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  const filtered = apps.filter((a) => {
-    if (filter !== "all" && a.status !== filter) return false;
-    if (q && !`${a.company} ${a.roleTitle}`.toLowerCase().includes(q.toLowerCase())) return false;
-    return true;
+  const filtered = filterApplications(apps, {
+    status: filter,
+    query: q,
+    includeClosed,
+    sort,
+    from: from || null,
+    to: to || null,
   });
 
   const counts = STATUS_ORDER.reduce<Record<string, number>>((acc, s) => {
@@ -96,6 +111,35 @@ export default function Dashboard() {
         </div>
         <input className="input w-full sm:w-auto sm:max-w-[220px] sm:ml-auto"
           placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} />
+      </div>
+
+      <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:items-center">
+        <button className="btn btn-ghost whitespace-nowrap"
+          onClick={() => setIncludeClosed((v) => !v)}
+          aria-pressed={includeClosed}
+          style={includeClosed ? { borderColor: "var(--accent)" } : {}}>
+          {includeClosed ? "✓ " : ""}Include closed &amp; expired
+        </button>
+        <label className="flex items-center gap-2 text-sm" style={{ color: "var(--muted)" }}>
+          Sort
+          <select className="input" value={sort} onChange={(e) => setSort(e.target.value as SortKey)}>
+            {(Object.keys(SORT_LABELS) as SortKey[]).map((k) => (
+              <option key={k} value={k}>{SORT_LABELS[k]}</option>
+            ))}
+          </select>
+        </label>
+        <label className="flex items-center gap-2 text-sm" style={{ color: "var(--muted)" }}>
+          Applied
+          <input type="date" className="input" value={from} max={to || undefined}
+            onChange={(e) => setFrom(e.target.value)} aria-label="Applied from" />
+          <span>–</span>
+          <input type="date" className="input" value={to} min={from || undefined}
+            onChange={(e) => setTo(e.target.value)} aria-label="Applied to" />
+        </label>
+        {(from || to) && (
+          <button className="btn btn-ghost whitespace-nowrap"
+            onClick={() => { setFrom(""); setTo(""); }}>Clear dates</button>
+        )}
       </div>
 
       {loading ? (

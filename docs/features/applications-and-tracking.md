@@ -55,6 +55,22 @@ The dashboard list (`src/app/page.tsx`) renders as a table on desktop and a stac
 on mobile; the detail page's dense field grids collapse to one column on narrow screens. See
 [mobile & PWA](mobile-and-pwa.md).
 
+### Dashboard filtering
+
+`GET /api/applications` returns every application (all statuses); the dashboard narrows the
+list client-side via `filterApplications()` in `src/lib/dashboard-filter.ts` (a pure,
+unit-tested module). By default it **hides the terminal statuses** — `expired`, `closed_won`,
+and `closed_lost` (`HIDDEN_STATUSES`, the complement of the active `OPEN` set in
+`src/lib/expiry.ts`) — so the pipeline view shows only live applications. Controls:
+
+- **Include closed & expired** toggle — reveals the hidden terminal statuses.
+- **Status buttons** — selecting a specific status (incl. a hidden one like "Expired") always
+  shows it, regardless of the toggle. Button counts reflect the true per-status totals.
+- **Search** — case-insensitive substring over company + role.
+- **Applied date range** — inclusive `from`/`to` bounds on `appliedAt`; undated apps drop out
+  while a range is active.
+- **Sort** — recent activity (default), date applied, company A–Z, or interest rating.
+
 ## Interviews
 
 - `POST /api/applications/[id]/interviews` — add a round (verifies the application is
