@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { StatusBadge } from "@/components/StatusBadge";
@@ -49,11 +49,15 @@ export default function ApplicationDetail() {
   const [generating, setGenerating] = useState(search.get("generating") === "1");
   const [busy, setBusy] = useState("");
   const [notes, setNotes] = useState("");
+  // Tracks unsaved edits to the notes textarea. A reload triggered by another editor
+  // (e.g. the Job details "Save details" button, which calls load() via onSaved) must not
+  // overwrite notes the user is still typing but hasn't saved yet.
+  const notesDirty = useRef(false);
 
   const load = useCallback(async () => {
     const data = await api<Detail>(`/api/applications/${id}`);
     setD(data);
-    setNotes(data.notes ?? "");
+    if (!notesDirty.current) setNotes(data.notes ?? "");
     return data;
   }, [id]);
 
@@ -80,6 +84,7 @@ export default function ApplicationDetail() {
   async function saveNotes() {
     setBusy("notes");
     await api(`/api/applications/${id}`, { method: "PATCH", body: JSON.stringify({ notes }) });
+    notesDirty.current = false;
     setBusy("");
     load();
   }
@@ -242,7 +247,8 @@ export default function ApplicationDetail() {
         <div className="flex flex-col gap-6">
           <section className="card p-5">
             <h2 className="font-semibold text-lg mb-2">Notes</h2>
-            <textarea className="textarea" rows={5} value={notes} onChange={(e) => setNotes(e.target.value)} />
+            <textarea className="textarea" rows={5} value={notes}
+              onChange={(e) => { notesDirty.current = true; setNotes(e.target.value); }} />
             <button className="btn btn-ghost mt-2" disabled={busy === "notes"} onClick={saveNotes}>
               {busy === "notes" ? "Saving…" : "Save notes"}
             </button>

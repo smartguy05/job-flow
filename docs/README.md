@@ -16,7 +16,7 @@ documents how the system is built and operated. Start here and follow the links.
 - [Authentik setup](auth/authentik-setup.md) — provider/application configuration walkthrough.
 
 ### Features
-- [Applications & tracking](features/applications-and-tracking.md) — capture, dedup, CRUD, interviews, post-interview debrief (optional Whisper transcription), drafts, timeline.
+- [Applications & tracking](features/applications-and-tracking.md) — capture, dedup, CRUD, dashboard filtering (hides expired/closed by default), interviews, post-interview debrief (optional Whisper transcription), drafts, timeline.
 - [Calendar](features/calendar.md) — month grid + agenda of interviews, deadlines, and next-actions across all applications, plus a subscribable `.ics` feed.
 - [Resume generation](features/resume-generation.md) — career profile/files/skill, render pipeline, 2-page fit, downloads.
 - [Interview prep](features/interview-prep.md) — AI prep pack per interview round (questions + answers, questions to ask, study checklist), regenerable and editable.
