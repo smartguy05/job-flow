@@ -29,6 +29,7 @@ See [OIDC flow](../auth/oidc-flow.md).
 | `DELETE /api/applications/[id]` | Delete (children cascade). |
 | `PUT /api/applications/[id]/job-description` | Set the job description used for tailoring. Either JSON `{ jdSnapshot }` (paste/amend) or `multipart/form-data` with a `file` (PDF/Word/text, ≤10MB — text extracted server-side). Logs a `jd_updated` event. → `{ jdSnapshot }`. |
 | `POST /api/applications/[id]/generate` | Generate a tailored resume version → `{ resumeId }`. 404 if app not owned. |
+| `POST /api/applications/[id]/resumes` | Attach a copy of an existing resume as a new draft version. Body: `sourceResumeId` (req). → `{ resumeId }`. 400 if missing, 404 if source/target not owned. |
 | `POST /api/applications/[id]/drafts` | Generate + store a draft. Body: `type` (`reply`\|`cover_letter`\|`follow_up`), `extra?`. |
 | `POST /api/applications/[id]/interviews` | Add an interview round. |
 | `GET /api/applications/[id]/files` | List uploaded document metadata (no bytes). |
@@ -49,6 +50,7 @@ See [applications & tracking](../features/applications-and-tracking.md) and
 
 | Method / Path | Purpose |
 |---|---|
+| `GET /api/resumes` | List the user's resumes across all applications (with owning `company`/`roleTitle`, no file blobs), newest first. Used as the "add existing" source list. |
 | `GET /api/resumes/[id]` | Resume metadata + parsed `content` and `chat` (no file blobs). |
 | `PATCH /api/resumes/[id]` | Save edited `content` (re-renders), set `status`, or `markSent`. |
 | `POST /api/resumes/[id]/refine` | Apply free-text `feedback`; re-renders. |

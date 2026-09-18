@@ -162,11 +162,14 @@ export default function ApplicationDetail() {
 
           {/* Resumes */}
           <section className="card p-5">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <h2 className="font-semibold text-lg">Resumes</h2>
-              <button className="btn btn-primary" disabled={busy === "generate" || generating} onClick={generate}>
-                {busy === "generate" || generating ? "Generating…" : "+ Generate new version"}
-              </button>
+              <div className="flex gap-2">
+                <AddExistingResume applicationId={d.id} disabled={!!busy || generating} onAdded={load} />
+                <button className="btn btn-primary" disabled={busy === "generate" || generating} onClick={generate}>
+                  {busy === "generate" || generating ? "Generating…" : "+ Generate new version"}
+                </button>
+              </div>
             </div>
             {generating && d.resumes.length === 0 && (
               <p className="text-sm" style={{ color: "var(--muted)" }}>
@@ -270,6 +273,94 @@ export default function ApplicationDetail() {
           </section>
         </div>
       </div>
+    </div>
+  );
+}
+
+// A resume the user created against any application, offered as a reusable source.
+type ResumeOption = {
+  id: number;
+  applicationId: number;
+  version: number;
+  status: string;
+  pageCount: number | null;
+  createdAt: string;
+  company: string;
+  roleTitle: string;
+};
+
+// Pick a previously created resume (from this or another application) and attach a copy of it
+// to this application as a new draft version, via POST /api/applications/[id]/resumes.
+function AddExistingResume({
+  applicationId, disabled, onAdded,
+}: {
+  applicationId: number;
+  disabled: boolean;
+  onAdded: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [options, setOptions] = useState<ResumeOption[] | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function toggle() {
+    if (open) { setOpen(false); return; }
+    setOpen(true);
+    if (options === null) {
+      try {
+        const all = await api<ResumeOption[]>("/api/resumes");
+        // Don't offer resumes that already belong to this application.
+        setOptions(all.filter((r) => r.applicationId !== applicationId));
+      } catch {
+        setOptions([]);
+      }
+    }
+  }
+
+  async function add(sourceResumeId: number) {
+    setBusy(true);
+    try {
+      await api(`/api/applications/${applicationId}/resumes`, {
+        method: "POST",
+        body: JSON.stringify({ sourceResumeId }),
+      });
+      setOpen(false);
+      onAdded();
+    } catch (e) {
+      alert((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="relative">
+      <button className="btn btn-ghost" disabled={disabled} onClick={toggle}>
+        {open ? "Cancel" : "Add existing"}
+      </button>
+      {open && (
+        <div className="absolute right-0 z-10 mt-2 w-80 max-h-80 overflow-auto card p-2 shadow-lg"
+          style={{ background: "var(--surface-1)", border: "1px solid var(--border)" }}>
+          {options === null ? (
+            <p className="text-sm p-2" style={{ color: "var(--muted)" }}>Loading…</p>
+          ) : options.length === 0 ? (
+            <p className="text-sm p-2" style={{ color: "var(--muted)" }}>No other resumes to reuse.</p>
+          ) : (
+            <div className="flex flex-col gap-1">
+              {options.map((r) => (
+                <button key={r.id} disabled={busy}
+                  className="text-left p-2 rounded-md hover:opacity-80"
+                  style={{ background: "var(--surface-2)" }}
+                  onClick={() => add(r.id)}>
+                  <div className="font-medium text-sm">{r.company} · v{r.version}</div>
+                  <div className="text-xs" style={{ color: "var(--muted)" }}>
+                    {r.roleTitle} · {fmtRelative(r.createdAt)}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -114,8 +114,8 @@ draft is stored and a `note` event logged.
 
 `logEvent(userId, applicationId, type, detail?)` inserts an `events` row **and** bumps the
 application's `lastActivityAt`/`updatedAt`. Event types: `created`, `status_change`,
-`resume_generated`, `resume_final`, `resume_sent`, `interview`, `note`, `reminder_sent`,
-`expired`. The `reminder_sent` and `expired` events are inserted **directly** (not via
+`resume_generated`, `resume_copied`, `resume_final`, `resume_sent`, `interview`, `note`,
+`reminder_sent`, `expired`. The `reminder_sent` and `expired` events are inserted **directly** (not via
 `logEvent`) so they do **not** bump `lastActivityAt` — a system nudge and the expiry flip
 itself are not user activity and must not reset the inactivity clock. The timeline powers the
 detail page and the [reminders & analytics](reminders-and-analytics.md) features.

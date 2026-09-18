@@ -5,10 +5,11 @@ vi.mock("./render-resume", () => ({ renderResume: vi.fn() }));
 
 import { generateResumeContent, adjustForLength } from "./llm";
 import { renderResume } from "./render-resume";
-import { createResumeForApplication, rerenderResume } from "./resume-service";
+import { createResumeForApplication, rerenderResume, copyResumeToApplication } from "./resume-service";
 import { db, schema } from "@/db";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { makeResumeContent } from "@/test/fixtures";
+import { seedUser } from "@/test/req";
 
 const mockGen = vi.mocked(generateResumeContent);
 const mockAdjust = vi.mocked(adjustForLength);
@@ -157,5 +158,115 @@ describe("rerenderResume", () => {
 
   it("throws for a missing resume", async () => {
     await expect(rerenderResume(userId(), 9999, makeResumeContent())).rejects.toThrow(/not found/i);
+  });
+});
+
+describe("copyResumeToApplication", () => {
+  async function makeSource(appId: number, over: Partial<typeof schema.resumes.$inferInsert> = {}) {
+    const [row] = await db
+      .insert(schema.resumes)
+      .values({
+        userId: globalThis.__testUserId,
+        applicationId: appId,
+        version: 3,
+        status: "final",
+        contentJson: JSON.stringify(makeResumeContent({ summary: "reusable summary" })),
+        chatJson: JSON.stringify([{ role: "user", content: "tweak" }]),
+        baseName: "Anthony_James_Resume_Globex_v3",
+        docxData: Buffer.from("source-docx"),
+        pdfData: Buffer.from("source-pdf"),
+        pageCount: 2,
+        sentAt: new Date(),
+        ...over,
+      })
+      .returning({ id: schema.resumes.id });
+    return row.id;
+  }
+
+  it("copies content and rendered bytes into the target application as a fresh v1 draft", async () => {
+    const sourceApp = await makeApp();
+    const sourceId = await makeSource(sourceApp.id);
+    const target = await makeApp();
+
+    const newId = await copyResumeToApplication(userId(), sourceId, target.id);
+    const [copy] = await db.select().from(schema.resumes).where(eq(schema.resumes.id, newId)).limit(1);
+
+    expect(copy.applicationId).toBe(target.id);
+    expect(copy.version).toBe(1);
+    expect(copy.status).toBe("draft");
+    expect(copy.sentAt).toBeNull();
+    expect(copy.chatJson).toBe("[]");
+    expect(JSON.parse(copy.contentJson).summary).toBe("reusable summary");
+    expect(Buffer.from(copy.pdfData!).toString()).toBe("source-pdf");
+    expect(Buffer.from(copy.docxData!).toString()).toBe("source-docx");
+    expect(copy.pageCount).toBe(2);
+    // Filename stem is refreshed to the target company + new version.
+    expect(copy.baseName).toBe("Anthony_James_Resume_Globex_Corp_v1");
+    // Rendering is never invoked for a copy.
+    expect(mockRender).not.toHaveBeenCalled();
+    expect(mockAdjust).not.toHaveBeenCalled();
+  });
+
+  it("logs a resume_copied event on the target application", async () => {
+    const sourceApp = await makeApp();
+    const sourceId = await makeSource(sourceApp.id);
+    const target = await makeApp();
+    await copyResumeToApplication(userId(), sourceId, target.id);
+    const events = await db.select().from(schema.events).where(eq(schema.events.applicationId, target.id));
+    expect(events.some((e) => e.type === "resume_copied")).toBe(true);
+  });
+
+  it("increments the version when the target already has resumes", async () => {
+    const sourceApp = await makeApp();
+    const sourceId = await makeSource(sourceApp.id);
+    const target = await makeApp();
+    await db.insert(schema.resumes).values({
+      userId: globalThis.__testUserId,
+      applicationId: target.id,
+      version: 1,
+      status: "draft",
+      contentJson: JSON.stringify(makeResumeContent()),
+      chatJson: "[]",
+    });
+    const newId = await copyResumeToApplication(userId(), sourceId, target.id);
+    const [copy] = await db.select().from(schema.resumes).where(eq(schema.resumes.id, newId)).limit(1);
+    expect(copy.version).toBe(2);
+  });
+
+  it("throws for a missing source resume", async () => {
+    const target = await makeApp();
+    await expect(copyResumeToApplication(userId(), 9999, target.id)).rejects.toThrow(/not found/i);
+  });
+
+  it("throws for a missing target application", async () => {
+    const sourceApp = await makeApp();
+    const sourceId = await makeSource(sourceApp.id);
+    await expect(copyResumeToApplication(userId(), sourceId, 9999)).rejects.toThrow(/not found/i);
+  });
+
+  it("won't copy another tenant's resume", async () => {
+    const sourceApp = await makeApp();
+    const sourceId = await makeSource(sourceApp.id);
+    const other = await seedUser("resume-copy-other");
+    const [otherApp] = await db
+      .insert(schema.applications)
+      .values({
+        userId: other.id,
+        company: "Initech",
+        companyNormalized: "initech",
+        roleTitle: "Engineer",
+        status: "applied",
+        lastActivityAt: new Date(),
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .returning({ id: schema.applications.id });
+    await expect(copyResumeToApplication(other.id, sourceId, otherApp.id)).rejects.toThrow(/not found/i);
+    // Nothing should have been written for the other tenant.
+    const rows = await db
+      .select()
+      .from(schema.resumes)
+      .where(and(eq(schema.resumes.userId, other.id), eq(schema.resumes.applicationId, otherApp.id)));
+    expect(rows).toHaveLength(0);
   });
 });

@@ -73,6 +73,24 @@ nothing is regenerated automatically.
    `contentJson`, `baseName`, and `docxData`/`pdfData` (`bytea`). Logs a
    `resume_generated` event.
 
+## Reuse an existing resume
+
+A resume already created for one application can be attached to another, so the user keeps
+the right resume on each job without regenerating from scratch. On the application detail
+page (**Resumes** panel), **Add existing** lists the user's resumes across all applications
+(`GET /api/resumes`, blobs excluded) and, on selection, copies the chosen one in.
+
+- `POST /api/applications/[id]/resumes` (body `{ sourceResumeId }`) →
+  `copyResumeToApplication(userId, sourceResumeId, targetApplicationId)`
+  (`src/lib/resume-service.ts`).
+- The copy reuses the source's stored `contentJson` **and its already-rendered
+  `docxData`/`pdfData` verbatim** — no LLM call and no re-render. Only the `baseName`
+  filename stem is refreshed to the target company. It lands as a fresh `draft` (chat reset,
+  `sentAt` cleared) with the next `version` for the target application, and logs a
+  `resume_copied` event. Both source and target are scoped to the owning user (`404`
+  otherwise). The copied draft can then be edited/refined against the new posting like any
+  generated version.
+
 ## Review & refine
 
 The editor (`src/app/resumes/[id]/page.tsx`) shows a live PDF preview beside the edit/refine

@@ -101,6 +101,66 @@ export async function createResumeForApplication(userId: string, applicationId: 
   return inserted.id;
 }
 
+// Attach a previously created resume to another application as a new draft version.
+// The stored content and already-rendered DOCX/PDF bytes are copied verbatim — no LLM call
+// and no re-render — so the user can reuse a resume they tailored for one job on another.
+// Only the download filename stem is refreshed to the target company. The copy lands as a
+// fresh "draft" (not sent) that can then be edited/refined against the new posting.
+export async function copyResumeToApplication(
+  userId: string,
+  sourceResumeId: number,
+  targetApplicationId: number,
+): Promise<number> {
+  const [source] = await db
+    .select()
+    .from(schema.resumes)
+    .where(and(eq(schema.resumes.id, sourceResumeId), eq(schema.resumes.userId, userId)))
+    .limit(1);
+  if (!source) throw new Error("Resume not found");
+
+  const [app] = await db
+    .select()
+    .from(schema.applications)
+    .where(and(eq(schema.applications.id, targetApplicationId), eq(schema.applications.userId, userId)))
+    .limit(1);
+  if (!app) throw new Error("Application not found");
+
+  const prev = await db
+    .select({ version: schema.resumes.version })
+    .from(schema.resumes)
+    .where(and(eq(schema.resumes.applicationId, targetApplicationId), eq(schema.resumes.userId, userId)))
+    .orderBy(desc(schema.resumes.version));
+  const version = (prev[0]?.version ?? 0) + 1;
+
+  const content = JSON.parse(source.contentJson) as ResumeContent;
+  const baseName = baseNameFor(content, app.company, version);
+
+  const [inserted] = await db
+    .insert(schema.resumes)
+    .values({
+      userId,
+      applicationId: targetApplicationId,
+      version,
+      status: "draft",
+      contentJson: source.contentJson,
+      chatJson: "[]",
+      baseName,
+      docxData: source.docxData,
+      pdfData: source.pdfData,
+      pageCount: source.pageCount,
+      fitWarning: source.fitWarning,
+    })
+    .returning({ id: schema.resumes.id });
+
+  await logEvent(
+    userId,
+    targetApplicationId,
+    "resume_copied",
+    `v${version} copied from ${source.baseName ?? `resume #${sourceResumeId}`}`,
+  );
+  return inserted.id;
+}
+
 // Re-render an existing resume row after its content changed.
 export async function rerenderResume(userId: string, resumeId: number, newContent: ResumeContent): Promise<void> {
   const [resume] = await db
