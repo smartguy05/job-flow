@@ -94,6 +94,7 @@ export async function POST(req: NextRequest) {
         and(
           eq(schema.applicationFiles.userId, user.id),
           inArray(schema.applicationFiles.applicationId, appIds),
+          eq(schema.applicationFiles.kind, "benefits"),
         ),
       );
     const benefitsDocs: LlmDocument[] = files

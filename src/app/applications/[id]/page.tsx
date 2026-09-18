@@ -682,8 +682,18 @@ function JobDescriptionPanel({
   );
 }
 
-// Upload/list/delete benefits paperwork (PDF) attached to the application. These files flow
-// into any offer comparison that includes this application.
+// Upload/list/delete kind of file (resume, cover letter, message, or benefits paperwork)
+// attached to the application. Store-and-download only — only "benefits" files flow into
+// any offer comparison that includes this application.
+const FILE_KIND_OPTIONS: { value: string; label: string; heading: string }[] = [
+  { value: "resume", label: "Resume", heading: "Resumes" },
+  { value: "cover_letter", label: "Cover letter", heading: "Cover letters" },
+  { value: "message", label: "Message", heading: "Messages" },
+  { value: "benefits", label: "Benefits", heading: "Benefits & documents" },
+];
+
+const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
 function BenefitsFilesSection({
   applicationId, files, onChange,
 }: {
@@ -692,12 +702,14 @@ function BenefitsFilesSection({
   onChange: () => void;
 }) {
   const [busy, setBusy] = useState(false);
+  const [kind, setKind] = useState("resume");
 
   async function upload(file: File) {
     setBusy(true);
     try {
       const form = new FormData();
       form.set("file", file);
+      form.set("kind", kind);
       const res = await fetch(`/api/applications/${applicationId}/files`, { method: "POST", body: form });
       if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Upload failed");
       onChange();
@@ -712,35 +724,59 @@ function BenefitsFilesSection({
     onChange();
   }
 
+  const accept = kind === "benefits" ? "application/pdf" : `.pdf,.docx,application/pdf,${DOCX_MIME}`;
+
+  const grouped = FILE_KIND_OPTIONS.map((opt) => ({
+    ...opt,
+    items: files.filter((f) => (f.kind || "benefits") === opt.value),
+  })).filter((g) => g.items.length > 0);
+
   return (
     <section className="card p-5">
-      <div className="flex items-center justify-between mb-3">
-        <h2 className="font-semibold text-lg">Benefits & documents</h2>
-        <label className="btn btn-ghost cursor-pointer" style={{ opacity: busy ? 0.5 : 1 }}>
-          {busy ? "Uploading…" : "+ Upload PDF"}
-          <input type="file" accept="application/pdf" className="hidden" disabled={busy}
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = ""; }} />
-        </label>
+      <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+        <h2 className="font-semibold text-lg">Files</h2>
+        <div className="flex items-center gap-2">
+          <select className="select text-sm" style={{ width: "auto" }} value={kind}
+            onChange={(e) => setKind(e.target.value)} disabled={busy}>
+            {FILE_KIND_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>{opt.label}</option>
+            ))}
+          </select>
+          <label className="btn btn-ghost cursor-pointer" style={{ opacity: busy ? 0.5 : 1 }}>
+            {busy ? "Uploading…" : "+ Upload"}
+            <input type="file" accept={accept} className="hidden" disabled={busy}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); e.target.value = ""; }} />
+          </label>
+        </div>
       </div>
       <p className="text-xs mb-3" style={{ color: "var(--muted)" }}>
-        Upload benefits paperwork (PDF). It’s used automatically when you compare this offer.
+        Upload resumes, cover letters, and messages (PDF or Word) for reference, or benefits
+        paperwork (PDF) — benefits files are used automatically when you compare this offer.
+        All uploads are stored for download only.
       </p>
       {files.length === 0 ? (
         <p className="text-sm" style={{ color: "var(--muted)" }}>No documents uploaded.</p>
       ) : (
-        <div className="flex flex-col gap-2">
-          {files.map((f) => (
-            <div key={f.id} className="flex items-center justify-between p-3 rounded-md" style={{ background: "var(--surface-2)" }}>
-              <div>
-                <a className="font-medium underline" style={{ color: "var(--accent)" }}
-                  href={`/api/applications/${applicationId}/files/${f.id}?inline=1`} target="_blank" rel="noreferrer">
-                  {f.name}
-                </a>
-                <div className="text-xs" style={{ color: "var(--muted)" }}>
-                  {(f.size / 1024).toFixed(0)} KB · {fmtRelative(f.createdAt)}
+        <div className="flex flex-col gap-4">
+          {grouped.map((g) => (
+            <div key={g.value} className="flex flex-col gap-2">
+              <h3 className="text-xs font-semibold uppercase tracking-wide" style={{ color: "var(--muted)" }}>
+                {g.heading}
+              </h3>
+              {g.items.map((f) => (
+                <div key={f.id} className="flex items-center justify-between p-3 rounded-md" style={{ background: "var(--surface-2)" }}>
+                  <div>
+                    <a className="font-medium underline" style={{ color: "var(--accent)" }}
+                      href={`/api/applications/${applicationId}/files/${f.id}?inline=1`} target="_blank" rel="noreferrer">
+                      {f.name}
+                    </a>
+                    <div className="text-xs" style={{ color: "var(--muted)" }}>
+                      {(f.size / 1024).toFixed(0)} KB · {fmtRelative(f.createdAt)}
+                    </div>
+                  </div>
+                  <button className="btn btn-ghost text-xs" onClick={() => del(f.id)}>Delete</button>
                 </div>
-              </div>
-              <button className="btn btn-ghost text-xs" onClick={() => del(f.id)}>Delete</button>
+              ))}
             </div>
           ))}
         </div>

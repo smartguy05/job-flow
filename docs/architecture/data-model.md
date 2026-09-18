@@ -27,7 +27,7 @@ from, and the [API reference](../api/reference.md) for per-route behavior.
 | `applications` | `id` identity | The core record (~40 columns). `status` (`text`) is one of `applied` \| `in_progress` \| `closed_won` \| `closed_lost` \| `expired`; `appliedAt` is the user-settable applied date; `lastActivityAt` drives reminders + auto-expiry. |
 | `resumes` | `id` identity | Generated resume versions + file bytes. |
 | `interviews` | `id` identity | Interview rounds per application, plus an optional post-interview debrief (`transcript`, `debrief_questions`/`debrief_answers`/`debrief_action_items` as JSON `text`, `debrief_summary`, `debrief_sentiment` JSON, `debrief_at`) and an optional AI **interview prep pack** (`prep_pack_json` — the full pack as JSON `text` — and `prep_generated_at`). Audio is transcribed and discarded — no audio bytes are stored. |
-| `application_files` | `id` identity | Binary documents uploaded against an application (currently benefits paperwork, PDF). `data bytea`, plus `kind`/`name`/`mime_type`/`size`. Fed to the model as native document blocks during offer comparison. |
+| `application_files` | `id` identity | Binary documents uploaded against an application. `kind` is one of `benefits` \| `resume` \| `cover_letter` \| `message` (defaults to `benefits`). `data bytea`, plus `name`/`mime_type`/`size`. Only `kind = benefits` files are fed to the model as native document blocks during offer comparison — the other kinds are store-and-download only. |
 | `offer_comparisons` | `id` identity | Saved offer comparisons. `application_ids` is a JSON `number[]` (not a FK — the snapshot must survive edits/deletes); `result_json` snapshots the deterministic table + AI verdict; optional `title`/`priorities`. |
 | `events` | `id` identity | Activity log (timeline + analytics). |
 | `message_drafts` | `id` identity | Reply/cover-letter/follow-up drafts. |
@@ -55,9 +55,11 @@ Binary files live **in the database**, not on disk:
 
 - `resumes.docxData` / `resumes.pdfData` are `bytea` (a Drizzle `customType` normalizing
   reads to a Node `Buffer`).
-- `application_files.data` is `bytea` — user-uploaded benefits PDFs. Uploaded via the
-  proven `req.formData()` → `file instanceof File` flow (mirroring the transcript route),
-  base64-encoded at comparison time and sent to the model as native document blocks.
+- `application_files.data` is `bytea` — user-uploaded files (resumes, cover letters,
+  messages, or benefits paperwork; see `kind` above). Uploaded via the proven
+  `req.formData()` → `file instanceof File` flow (mirroring the transcript route). Only
+  `benefits` files are base64-encoded at comparison time and sent to the model as native
+  document blocks; the other kinds are stored purely for download.
 - `resumes.baseName` holds the descriptive filename stem (e.g.
   `Jane_Doe_Resume_Globex_v2`) used for downloads.
 - JSON is stored as `text` and (de)serialized in code: `settings.value`,

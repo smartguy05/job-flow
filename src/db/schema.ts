@@ -203,7 +203,7 @@ export const applicationFiles = pgTable(
     applicationId: integer("application_id")
       .notNull()
       .references(() => applications.id, { onDelete: "cascade" }),
-    kind: text("kind").notNull().default("benefits"), // benefits | (future kinds)
+    kind: text("kind").notNull().default("benefits"), // benefits | resume | cover_letter | message
     name: text("name").notNull(),
     mimeType: text("mime_type").notNull(),
     size: integer("size").notNull(), // bytes

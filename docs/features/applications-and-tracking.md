@@ -108,6 +108,17 @@ application detail page:
 Questions/answers/summary/action-items/sentiment are all synthesized through the
 provider-agnostic `complete()`, so they work under either LLM provider.
 
+## Files (`/api/applications/[id]/files`)
+
+Users can attach files to an application of four kinds — `resume`, `cover_letter`,
+`message`, `benefits` (`kind` field, defaults to `benefits`) — surfaced in a "Files" panel
+on the detail page, grouped by kind, with per-kind upload and download/delete. `benefits`
+accepts PDF only; the other three kinds accept PDF or DOCX (10MB cap). Files are stored in
+Postgres as `bytea` (see [data model](../architecture/data-model.md)) and are
+store-and-download only — `resume`/`cover_letter`/`message` uploads are never sent to an
+LLM. Only `benefits` files feed the AI verdict in
+[offer comparison](offer-comparison.md#application-files-upload-store--download).
+
 ## Message drafts (`POST /api/applications/[id]/drafts`)
 
 `generateDraft()` produces a recruiter reply, cover letter, or follow-up using the user's
@@ -132,4 +143,5 @@ List/create recruiters and agency contacts (per user). Applications reference a 
 ## Related
 
 - [Resume generation](resume-generation.md) · [Reminders & analytics](reminders-and-analytics.md) ·
-  [Data model](../architecture/data-model.md) · [API reference](../api/reference.md)
+  [Offer comparison](offer-comparison.md) · [Data model](../architecture/data-model.md) ·
+  [API reference](../api/reference.md)

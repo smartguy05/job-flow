@@ -10,14 +10,21 @@ function uploadReq(
   url: string,
   file: File,
   cookie = globalThis.__testCookie ?? "",
+  kind?: string,
 ) {
   const form = new FormData();
   form.set("file", file);
+  if (kind !== undefined) form.set("kind", kind);
   return new NextRequest(`http://localhost${url}`, { method: "POST", headers: { cookie }, body: form });
 }
 
 const pdf = (name = "benefits.pdf", bytes = [1, 2, 3]) =>
   new File([new Uint8Array(bytes)], name, { type: "application/pdf" });
+
+const docx = (name = "resume.docx", bytes = [4, 5, 6]) =>
+  new File([new Uint8Array(bytes)], name, {
+    type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  });
 
 describe("POST /api/applications/[id]/files", () => {
   it("stores an uploaded PDF and returns its metadata", async () => {
@@ -73,6 +80,92 @@ describe("POST /api/applications/[id]/files", () => {
     const request = new NextRequest(`http://localhost/api/applications/1/files`, { method: "POST", body: form });
     const res = await POST(request, ctx(1));
     expect(res.status).toBe(401);
+  });
+
+  it.each(["resume", "cover_letter", "message"] as const)(
+    "accepts a PDF for kind=%s",
+    async (kind) => {
+      const appId = await insertApp();
+      const res = await POST(
+        uploadReq(`/api/applications/${appId}/files`, pdf(`${kind}.pdf`), undefined, kind),
+        ctx(appId),
+      );
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.kind).toBe(kind);
+      expect(body.mimeType).toBe("application/pdf");
+
+      const [row] = await db
+        .select()
+        .from(schema.applicationFiles)
+        .where(eq(schema.applicationFiles.applicationId, appId));
+      expect(row.kind).toBe(kind);
+      expect(row.mimeType).toBe("application/pdf");
+      expect(row.data).toEqual(Buffer.from([1, 2, 3]));
+    },
+  );
+
+  it.each(["resume", "cover_letter", "message"] as const)(
+    "accepts a DOCX for kind=%s",
+    async (kind) => {
+      const appId = await insertApp();
+      const res = await POST(
+        uploadReq(`/api/applications/${appId}/files`, docx(`${kind}.docx`), undefined, kind),
+        ctx(appId),
+      );
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.kind).toBe(kind);
+      expect(body.mimeType).toBe(
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      );
+
+      const [row] = await db
+        .select()
+        .from(schema.applicationFiles)
+        .where(eq(schema.applicationFiles.applicationId, appId));
+      expect(row.kind).toBe(kind);
+      expect(row.mimeType).toBe(
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      );
+      expect(row.data).toEqual(Buffer.from([4, 5, 6]));
+    },
+  );
+
+  it("rejects a DOCX for kind=benefits", async () => {
+    const appId = await insertApp();
+    const res = await POST(
+      uploadReq(`/api/applications/${appId}/files`, docx(), undefined, "benefits"),
+      ctx(appId),
+    );
+    expect(res.status).toBe(400);
+    const rows = await db
+      .select()
+      .from(schema.applicationFiles)
+      .where(eq(schema.applicationFiles.applicationId, appId));
+    expect(rows).toHaveLength(0);
+  });
+
+  it("rejects an unknown kind", async () => {
+    const appId = await insertApp();
+    const res = await POST(
+      uploadReq(`/api/applications/${appId}/files`, pdf(), undefined, "bogus"),
+      ctx(appId),
+    );
+    expect(res.status).toBe(400);
+    const rows = await db
+      .select()
+      .from(schema.applicationFiles)
+      .where(eq(schema.applicationFiles.applicationId, appId));
+    expect(rows).toHaveLength(0);
+  });
+
+  it("defaults to kind=benefits when no kind field is sent", async () => {
+    const appId = await insertApp();
+    const res = await POST(uploadReq(`/api/applications/${appId}/files`, pdf()), ctx(appId));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.kind).toBe("benefits");
   });
 });
 

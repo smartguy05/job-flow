@@ -53,6 +53,15 @@ describe("POST /api/offers/comparisons", () => {
       size: 3,
       data: Buffer.from([1, 2, 3]),
     });
+    await db.insert(schema.applicationFiles).values({
+      userId: globalThis.__testUserId,
+      applicationId: a1,
+      kind: "resume",
+      name: "r.pdf",
+      mimeType: "application/pdf",
+      size: 3,
+      data: Buffer.from([9, 9, 9]),
+    });
     await POST(req("/api/offers/comparisons", "POST", { applicationIds: [a1, a2], priorities: "remote first" }));
     const arg = mockGen.mock.calls[0][0];
     expect(arg.benefitsDocs).toHaveLength(1);

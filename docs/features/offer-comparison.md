@@ -24,13 +24,17 @@ weighs the structured data, each app's own pros/cons and interest rating, the ca
 optional stated priorities, and any uploaded benefits documents. Priorities steer the verdict
 when provided; otherwise fit is inferred from the profile + per-offer notes.
 
-## Benefits paperwork (PDF upload)
+## Application files (upload, store & download)
 
-Benefits detail often arrives as a PDF packet. Users upload PDFs against an **application**
-(reusable across comparisons) — stored in `application_files` as `bytea` (see the
-[data model](../architecture/data-model.md)), surfaced in a "Benefits & documents" section on
-the application detail page. A comparison automatically pulls the benefits PDFs of every
-included application and passes them to the model.
+Users can upload files against an **application** (reusable across comparisons) of four
+kinds — `resume`, `cover_letter`, `message`, `benefits` — stored in `application_files` as
+`bytea` (see the [data model](../architecture/data-model.md)). `benefits` accepts PDF only;
+the other three kinds accept PDF or DOCX. All four are surfaced in a "Files" panel on the
+application detail page, grouped by kind, with a kind selector on upload and per-file
+download/delete. `resume`/`cover_letter`/`message` uploads are store-and-download only — they
+are never sent to an LLM. Only `benefits` detail (often a PDF packet) feeds the AI verdict: a
+comparison automatically pulls the benefits PDFs of every included application and passes
+them to the model.
 
 Rather than adding a PDF-parsing/OCR library, the shared LLM layer was extended: `CompleteOpts`
 gained an optional `documents: LlmDocument[]` (base64 PDFs) that `complete()` attaches to the
