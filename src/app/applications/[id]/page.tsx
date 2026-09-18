@@ -122,15 +122,7 @@ export default function ApplicationDetail() {
       <div>
         <Link href="/" className="text-sm hover:underline" style={{ color: "var(--muted)" }}>← All applications</Link>
         <div className="flex items-start justify-between mt-2 gap-4 flex-wrap">
-          <div>
-            <h1 className="text-2xl font-bold">{d.company || "(Company TBD)"}</h1>
-            <p className="text-lg" style={{ color: "var(--muted)" }}>{d.roleTitle}</p>
-            {d.link && (
-              <a href={d.link} target="_blank" rel="noreferrer" className="text-sm underline" style={{ color: "var(--accent)" }}>
-                View posting ↗
-              </a>
-            )}
-          </div>
+          <EditableTitle detail={d} onSaved={load} />
           <div className="flex items-center gap-2">
             <select className="select" style={{ width: "auto" }} value={d.status}
               onChange={(e) => changeStatus(e.target.value)}>
@@ -162,11 +154,14 @@ export default function ApplicationDetail() {
 
           {/* Resumes */}
           <section className="card p-5">
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
               <h2 className="font-semibold text-lg">Resumes</h2>
-              <button className="btn btn-primary" disabled={busy === "generate" || generating} onClick={generate}>
-                {busy === "generate" || generating ? "Generating…" : "+ Generate new version"}
-              </button>
+              <div className="flex gap-2">
+                <AddExistingResume applicationId={d.id} disabled={!!busy || generating} onAdded={load} />
+                <button className="btn btn-primary" disabled={busy === "generate" || generating} onClick={generate}>
+                  {busy === "generate" || generating ? "Generating…" : "+ Generate new version"}
+                </button>
+              </div>
             </div>
             {generating && d.resumes.length === 0 && (
               <p className="text-sm" style={{ color: "var(--muted)" }}>
@@ -270,6 +265,172 @@ export default function ApplicationDetail() {
           </section>
         </div>
       </div>
+    </div>
+  );
+}
+
+// The application's company, role title, and posting link — display by default, with an
+// inline edit form. Company/roleTitle/link are intentionally not part of the Job details
+// form (see job-fields.ts), so this is the one place to set or change them after capture.
+// PATCH /api/applications/[id] re-normalizes the company for dedup on save.
+function EditableTitle({
+  detail, onSaved,
+}: {
+  detail: { id: number; company: string; roleTitle: string; link: string | null };
+  onSaved: () => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [company, setCompany] = useState(detail.company);
+  const [roleTitle, setRoleTitle] = useState(detail.roleTitle);
+  const [link, setLink] = useState(detail.link ?? "");
+  const [busy, setBusy] = useState(false);
+
+  function start() {
+    setCompany(detail.company);
+    setRoleTitle(detail.roleTitle);
+    setLink(detail.link ?? "");
+    setEditing(true);
+  }
+
+  async function save() {
+    setBusy(true);
+    try {
+      await api(`/api/applications/${detail.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ company, roleTitle, link: link.trim() || null }),
+      });
+      setEditing(false);
+      onSaved();
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  if (editing) {
+    return (
+      <div className="flex flex-col gap-2 w-full max-w-lg">
+        <div>
+          <label className="label">Company</label>
+          <input className="input" value={company} onChange={(e) => setCompany(e.target.value)} />
+        </div>
+        <div>
+          <label className="label">Role title</label>
+          <input className="input" value={roleTitle} onChange={(e) => setRoleTitle(e.target.value)} />
+        </div>
+        <div>
+          <label className="label">Posting link</label>
+          <input className="input" type="url" placeholder="https://…" value={link} onChange={(e) => setLink(e.target.value)} />
+        </div>
+        <div className="flex gap-2">
+          <button className="btn btn-primary" disabled={busy || !roleTitle.trim()} onClick={save}>
+            {busy ? "Saving…" : "Save"}
+          </button>
+          <button className="btn btn-ghost" disabled={busy} onClick={() => setEditing(false)}>Cancel</button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="flex items-center gap-2 flex-wrap">
+        <h1 className="text-2xl font-bold">{detail.company || "(Company TBD)"}</h1>
+        <button className="btn btn-ghost text-sm" onClick={start}>Edit</button>
+      </div>
+      <p className="text-lg" style={{ color: "var(--muted)" }}>{detail.roleTitle}</p>
+      {detail.link && (
+        <a href={detail.link} target="_blank" rel="noreferrer" className="text-sm underline" style={{ color: "var(--accent)" }}>
+          View posting ↗
+        </a>
+      )}
+    </div>
+  );
+}
+
+// A resume the user created against any application, offered as a reusable source.
+type ResumeOption = {
+  id: number;
+  applicationId: number;
+  version: number;
+  status: string;
+  pageCount: number | null;
+  createdAt: string;
+  company: string;
+  roleTitle: string;
+};
+
+// Pick a previously created resume (from this or another application) and attach a copy of it
+// to this application as a new draft version, via POST /api/applications/[id]/resumes.
+function AddExistingResume({
+  applicationId, disabled, onAdded,
+}: {
+  applicationId: number;
+  disabled: boolean;
+  onAdded: () => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [options, setOptions] = useState<ResumeOption[] | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function toggle() {
+    if (open) { setOpen(false); return; }
+    setOpen(true);
+    if (options === null) {
+      try {
+        const all = await api<ResumeOption[]>("/api/resumes");
+        // Don't offer resumes that already belong to this application.
+        setOptions(all.filter((r) => r.applicationId !== applicationId));
+      } catch {
+        setOptions([]);
+      }
+    }
+  }
+
+  async function add(sourceResumeId: number) {
+    setBusy(true);
+    try {
+      await api(`/api/applications/${applicationId}/resumes`, {
+        method: "POST",
+        body: JSON.stringify({ sourceResumeId }),
+      });
+      setOpen(false);
+      onAdded();
+    } catch (e) {
+      alert((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="relative">
+      <button className="btn btn-ghost" disabled={disabled} onClick={toggle}>
+        {open ? "Cancel" : "Add existing"}
+      </button>
+      {open && (
+        <div className="absolute right-0 z-10 mt-2 w-80 max-h-80 overflow-auto card p-2 shadow-lg"
+          style={{ background: "var(--surface-1)", border: "1px solid var(--border)" }}>
+          {options === null ? (
+            <p className="text-sm p-2" style={{ color: "var(--muted)" }}>Loading…</p>
+          ) : options.length === 0 ? (
+            <p className="text-sm p-2" style={{ color: "var(--muted)" }}>No other resumes to reuse.</p>
+          ) : (
+            <div className="flex flex-col gap-1">
+              {options.map((r) => (
+                <button key={r.id} disabled={busy}
+                  className="text-left p-2 rounded-md hover:opacity-80"
+                  style={{ background: "var(--surface-2)" }}
+                  onClick={() => add(r.id)}>
+                  <div className="font-medium text-sm">{r.company} · v{r.version}</div>
+                  <div className="text-xs" style={{ color: "var(--muted)" }}>
+                    {r.roleTitle} · {fmtRelative(r.createdAt)}
+                  </div>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

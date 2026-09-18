@@ -32,8 +32,12 @@ same user to the same normalized company and a similar role (Jaccard token simil
 - `GET /api/applications/[id]` — full detail: application, contact, resume **summaries**
   (blob columns projected out to `hasDocx`/`hasPdf` booleans), interviews, drafts, events.
 - `PATCH` — partial update; accepts an explicit `appliedAt` (ISO date, or `null` to clear),
-  so the applied date is editable on the detail page's Job-details panel. A status change
-  logs a `status_change` event and backfills `appliedAt` when moving off `applied`.
+  so the applied date is editable on the detail page's Job-details panel. Also accepts
+  `company` (re-normalizing `companyNormalized` for dedup), `roleTitle`, and `link` — these
+  are **not** part of the Job-details form (see `src/lib/job-fields.ts`); they're edited from
+  the detail page's title block (the **Edit** button beside the company name), the one place
+  to set or change them after capture. A status change logs a `status_change` event and
+  backfills `appliedAt` when moving off `applied`.
 - `PUT /api/applications/[id]/job-description` — set the tailoring job description
   (`jdSnapshot`) after capture: paste/amend text, or upload the posting as a PDF/Word/text
   file (extracted server-side). Logs a `jd_updated` event. See
@@ -114,8 +118,8 @@ draft is stored and a `note` event logged.
 
 `logEvent(userId, applicationId, type, detail?)` inserts an `events` row **and** bumps the
 application's `lastActivityAt`/`updatedAt`. Event types: `created`, `status_change`,
-`resume_generated`, `resume_final`, `resume_sent`, `interview`, `note`, `reminder_sent`,
-`expired`. The `reminder_sent` and `expired` events are inserted **directly** (not via
+`resume_generated`, `resume_copied`, `resume_final`, `resume_sent`, `interview`, `note`,
+`reminder_sent`, `expired`. The `reminder_sent` and `expired` events are inserted **directly** (not via
 `logEvent`) so they do **not** bump `lastActivityAt` — a system nudge and the expiry flip
 itself are not user activity and must not reset the inactivity clock. The timeline powers the
 detail page and the [reminders & analytics](reminders-and-analytics.md) features.
