@@ -8,6 +8,25 @@ import { getUser, unauthorized } from "@/lib/auth";
 // accepted. 10MB cap keeps a single packet comfortably within provider document limits.
 const MAX_BYTES = 10 * 1024 * 1024;
 
+const FILE_KINDS = ["benefits", "resume", "cover_letter", "message"] as const;
+type FileKind = (typeof FILE_KINDS)[number];
+
+const PDF_MIME = "application/pdf";
+const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+// benefits stays PDF-only (it's sent to the model as PDF document blocks during offer
+// comparison); resume/cover_letter/message are pure storage, so PDF or DOCX is fine.
+function allowedMimeTypes(kind: FileKind): string[] {
+  return kind === "benefits" ? [PDF_MIME] : [PDF_MIME, DOCX_MIME];
+}
+
+const KIND_LABELS: Record<FileKind, string> = {
+  benefits: "Benefits",
+  resume: "Resume",
+  cover_letter: "Cover letter",
+  message: "Message",
+};
+
 async function ownedApp(applicationId: number, userId: string) {
   const [app] = await db
     .select({ id: schema.applications.id })
@@ -58,8 +77,23 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
     const file = form.get("file");
     if (!(file instanceof File))
       return NextResponse.json({ error: "No file provided" }, { status: 400 });
-    if (file.type !== "application/pdf")
-      return NextResponse.json({ error: "Only PDF files are supported" }, { status: 400 });
+
+    const kindField = form.get("kind");
+    const kind: FileKind = kindField === null ? "benefits" : (kindField as string) as FileKind;
+    if (!FILE_KINDS.includes(kind))
+      return NextResponse.json({ error: "Unsupported file kind" }, { status: 400 });
+
+    const allowed = allowedMimeTypes(kind);
+    if (!allowed.includes(file.type))
+      return NextResponse.json(
+        {
+          error:
+            kind === "benefits"
+              ? "Only PDF files are supported"
+              : "Only PDF or DOCX files are supported",
+        },
+        { status: 400 },
+      );
     if (file.size > MAX_BYTES)
       return NextResponse.json({ error: "File exceeds the 10MB limit" }, { status: 400 });
 
@@ -69,9 +103,9 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
       .values({
         userId: user.id,
         applicationId,
-        kind: "benefits",
-        name: file.name || "document.pdf",
-        mimeType: "application/pdf",
+        kind,
+        name: file.name || (file.type === DOCX_MIME ? "document.docx" : "document.pdf"),
+        mimeType: file.type,
         size: data.length,
         data,
       })
@@ -83,7 +117,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ id: string
         kind: schema.applicationFiles.kind,
         createdAt: schema.applicationFiles.createdAt,
       });
-    await logEvent(user.id, applicationId, "file_uploaded", `Benefits: ${row.name}`);
+    await logEvent(user.id, applicationId, "file_uploaded", `${KIND_LABELS[kind]}: ${row.name}`);
     return NextResponse.json(row);
   } catch (e) {
     return NextResponse.json({ error: (e as Error).message }, { status: 500 });

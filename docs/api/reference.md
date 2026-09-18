@@ -32,10 +32,10 @@ See [OIDC flow](../auth/oidc-flow.md).
 | `POST /api/applications/[id]/resumes` | Attach a copy of an existing resume as a new draft version. Body: `sourceResumeId` (req). → `{ resumeId }`. 400 if missing, 404 if source/target not owned. |
 | `POST /api/applications/[id]/drafts` | Generate + store a draft. Body: `type` (`reply`\|`cover_letter`\|`follow_up`), `extra?`. |
 | `POST /api/applications/[id]/interviews` | Add an interview round. |
-| `GET /api/applications/[id]/files` | List uploaded document metadata (no bytes). |
-| `POST /api/applications/[id]/files` | Upload a benefits document. `multipart/form-data` with a PDF `file` (PDF-only, ≤10MB). → file metadata. |
-| `GET /api/applications/[id]/files/[fileId]` | Stream the file bytes. `?inline=1` to preview. |
-| `DELETE /api/applications/[id]/files/[fileId]` | Delete an uploaded document. |
+| `GET /api/applications/[id]/files` | List uploaded document metadata (no bytes), including `kind`. |
+| `POST /api/applications/[id]/files` | Upload a document. `multipart/form-data` with a `file` and an optional `kind` (`resume`\|`cover_letter`\|`message`\|`benefits`, defaults to `benefits`). `benefits` accepts PDF only; the other kinds accept PDF or DOCX (`application/vnd.openxmlformats-officedocument.wordprocessingml.document`). ≤10MB. → file metadata (incl. `kind`). |
+| `GET /api/applications/[id]/files/[fileId]` | Stream the file bytes (any `kind`). `?inline=1` to preview. |
+| `DELETE /api/applications/[id]/files/[fileId]` | Delete an uploaded document (any `kind`). |
 
 See [applications & tracking](../features/applications-and-tracking.md) and
 [offer comparison](../features/offer-comparison.md).

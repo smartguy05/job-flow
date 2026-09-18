@@ -24,6 +24,26 @@ async function insertFile(applicationId: number, userId = globalThis.__testUserI
   return row.id;
 }
 
+async function insertDocxFile(
+  applicationId: number,
+  userId = globalThis.__testUserId,
+  name = "resume.docx",
+) {
+  const [row] = await db
+    .insert(schema.applicationFiles)
+    .values({
+      userId,
+      applicationId,
+      kind: "resume",
+      name,
+      mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      size: 3,
+      data: Buffer.from([7, 8, 9]),
+    })
+    .returning({ id: schema.applicationFiles.id });
+  return row.id;
+}
+
 describe("GET /api/applications/[id]/files/[fileId]", () => {
   it("returns the file bytes with content headers", async () => {
     const appId = await insertApp();
@@ -46,6 +66,17 @@ describe("GET /api/applications/[id]/files/[fileId]", () => {
   it("returns 401 when unauthenticated", async () => {
     const res = await GET(anonReq(`/api/applications/1/files/1`), fileCtx(1, 1));
     expect(res.status).toBe(401);
+  });
+
+  it("downloads a DOCX file with the correct content type and bytes", async () => {
+    const appId = await insertApp();
+    const fileId = await insertDocxFile(appId);
+    const res = await GET(req(`/api/applications/${appId}/files/${fileId}`), fileCtx(appId, fileId));
+    expect(res.headers.get("Content-Type")).toBe(
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    );
+    const buf = Buffer.from(await res.arrayBuffer());
+    expect(buf).toEqual(Buffer.from([7, 8, 9]));
   });
 });
 
