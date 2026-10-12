@@ -6,6 +6,7 @@ import {
   uuid,
   primaryKey,
   index,
+  uniqueIndex,
   customType,
 } from "drizzle-orm/pg-core";
 
@@ -303,3 +304,44 @@ export const resumeSkill = pgTable("resume_skill", {
   content: text("content").notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().$defaultFn(now),
 });
+
+// Questions the user wants to ask interviewers. applicationId NULL = a general question
+// that applies to every job; otherwise it is specific to that one application.
+export const interviewQuestions = pgTable(
+  "interview_questions",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    applicationId: integer("application_id").references(() => applications.id, {
+      onDelete: "cascade",
+    }),
+    text: text("text").notNull(),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().$defaultFn(now),
+  },
+  (t) => [index("interview_questions_user_app_idx").on(t.userId, t.applicationId)],
+);
+
+// Per-job check state + notes for a question (general or job-specific). One row per
+// (application, question); absent row = unchecked with no notes.
+export const applicationQuestionState = pgTable(
+  "application_question_state",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    applicationId: integer("application_id")
+      .notNull()
+      .references(() => applications.id, { onDelete: "cascade" }),
+    questionId: integer("question_id")
+      .notNull()
+      .references(() => interviewQuestions.id, { onDelete: "cascade" }),
+    checkedAt: timestamp("checked_at", { withTimezone: true }), // null = unchecked
+    notes: text("notes").notNull().default(""),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().$defaultFn(now),
+  },
+  (t) => [uniqueIndex("app_question_state_uniq").on(t.applicationId, t.questionId)],
+);

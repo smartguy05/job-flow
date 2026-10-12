@@ -49,8 +49,15 @@ with a clear message, instead of returning partial text that yields a cryptic JS
   **Prep pack** panel (`PrepPackPanel`) with Generate/Regenerate, a collapsible view, editable
   sections, and Save.
 
+## Asking the interviewer
+
+The pack's `questionsToAsk` can be copied into a job's [interview question
+checklist](interview-questions.md) with **Import from prep pack**
+(`POST /api/applications/[id]/questions/import`), which skips case-insensitive duplicates of
+the job's existing and general questions.
+
 ## Related
 
-- [Applications & tracking](applications-and-tracking.md) · [Resume generation](resume-generation.md) ·
+- [Interview questions](interview-questions.md) · [Applications & tracking](applications-and-tracking.md) · [Resume generation](resume-generation.md) ·
   [Offer comparison](offer-comparison.md) · [API reference](../api/reference.md) ·
   [Data model](../architecture/data-model.md)

@@ -29,6 +29,8 @@ from, and the [API reference](../api/reference.md) for per-route behavior.
 | `interviews` | `id` identity | Interview rounds per application, plus an optional post-interview debrief (`transcript`, `debrief_questions`/`debrief_answers`/`debrief_action_items` as JSON `text`, `debrief_summary`, `debrief_sentiment` JSON, `debrief_at`) and an optional AI **interview prep pack** (`prep_pack_json` — the full pack as JSON `text` — and `prep_generated_at`). Audio is transcribed and discarded — no audio bytes are stored. |
 | `application_files` | `id` identity | Binary documents uploaded against an application. `kind` is one of `benefits` \| `resume` \| `cover_letter` \| `message` (defaults to `benefits`). `data bytea`, plus `name`/`mime_type`/`size`. Only `kind = benefits` files are fed to the model as native document blocks during offer comparison — the other kinds are store-and-download only. |
 | `offer_comparisons` | `id` identity | Saved offer comparisons. `application_ids` is a JSON `number[]` (not a FK — the snapshot must survive edits/deletes); `result_json` snapshots the deterministic table + AI verdict; optional `title`/`priorities`. |
+| `interview_questions` | `id` identity | Questions the user asks interviewers. `application_id` NULL = general (applies to every job); otherwise specific to that application (`ON DELETE CASCADE`). `text`, `sort_order`. Index `(user_id, application_id)`. |
+| `application_question_state` | `id` identity | Per-job check state + notes for a question. `application_id` + `question_id` (both `ON DELETE CASCADE`), `checked_at` (null = unchecked), `notes`, `updated_at`. Unique `(application_id, question_id)`; no row = unchecked, no notes. See [interview questions](../features/interview-questions.md). |
 | `events` | `id` identity | Activity log (timeline + analytics). |
 | `message_drafts` | `id` identity | Reply/cover-letter/follow-up drafts. |
 | `career_profile` | `userId` PK | One master career-info markdown per user. |
@@ -45,6 +47,9 @@ JS-side default (`$defaultFn(() => new Date())`).
   applications.id` (`ON DELETE CASCADE`) — deleting an application removes its children
   automatically.
 - All of the above also carry `userId → users.id` (`ON DELETE CASCADE`).
+- `interview_questions.applicationId → applications.id` (nullable, `ON DELETE CASCADE`);
+  `application_question_state.applicationId` / `.questionId` cascade from `applications` /
+  `interview_questions`.
 - `offer_comparisons` carries only `userId → users.id` (`ON DELETE CASCADE`); it references
   applications by id inside `application_ids`/`result_json` rather than by FK, so a saved
   comparison remains intact if an included application is later changed or deleted.
