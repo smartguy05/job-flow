@@ -128,6 +128,7 @@ export default function ApplicationDetail() {
               onChange={(e) => changeStatus(e.target.value)}>
               {STATUS_ORDER.map((s) => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
             </select>
+            <Link href={`/applications/${id}/questions`} className="btn btn-ghost">Questions</Link>
             <button className="btn btn-danger" onClick={del}>Delete</button>
           </div>
         </div>
