@@ -59,6 +59,9 @@ The dashboard list (`src/app/page.tsx`) renders as a table on desktop and a stac
 on mobile; the detail page's dense field grids collapse to one column on narrow screens. See
 [mobile & PWA](mobile-and-pwa.md).
 
+The detail page also has a **Questions** button opening a full-screen interview-question
+checklist at `/applications/[id]/questions`; see [interview questions](interview-questions.md).
+
 ### Dashboard filtering
 
 `GET /api/applications` returns every application (all statuses); the dashboard narrows the
@@ -143,5 +146,5 @@ List/create recruiters and agency contacts (per user). Applications reference a 
 ## Related
 
 - [Resume generation](resume-generation.md) · [Reminders & analytics](reminders-and-analytics.md) ·
-  [Offer comparison](offer-comparison.md) · [Data model](../architecture/data-model.md) ·
+  [Offer comparison](offer-comparison.md) · [Interview questions](interview-questions.md) · [Data model](../architecture/data-model.md) ·
   [API reference](../api/reference.md)

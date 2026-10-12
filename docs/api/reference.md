@@ -84,6 +84,24 @@ See [resume generation](../features/resume-generation.md).
 | `POST /api/interviews/[id]/prep` | Generate (or regenerate) the AI interview prep pack, persist it, log an `interview_prep` event. → the pack. |
 | `PATCH /api/interviews/[id]/prep` | Save hand-edits to the prep pack (validated). → the pack. |
 
+## Interview questions
+
+All routes are scoped to the caller; unowned rows return **404**. Errors are `{ error }`.
+
+| Method / Path | Purpose |
+|---|---|
+| `GET /api/questions` | List general questions (no application), ordered by `sortOrder`, `id`. → `{ questions: [{ id, text, sortOrder }] }`. |
+| `POST /api/questions` | Add a general question. Body: `text` (req, trimmed, ≤1000 chars). `sortOrder` = max general + 1. → `201 { id, text, sortOrder }`; 400 on bad text. |
+| `PATCH /api/questions/[id]` | Edit any owned question (general or job-specific). Body: `text?`, `sortOrder?` (integer). → `{ id, text, sortOrder }`; 400 on bad input. |
+| `DELETE /api/questions/[id]` | Delete an owned question (state rows cascade). → `{ ok: true }`. |
+| `GET /api/applications/[id]/questions` | The job's checklist. → `{ application: { id, company, roleTitle }, items, prepPacks }`. `items` are `{ id, text, source: "general"\|"job", checked, checkedAt, notes }`, unchecked first then checked by check time. `prepPacks` are `{ interviewId, round, scheduledAt, count }` for interviews whose prep pack has questions to ask. |
+| `POST /api/applications/[id]/questions` | Add a job-specific question. Body: `text` (req). → `201 { id, text, sortOrder }`. |
+| `DELETE /api/applications/[id]/questions` | Reset: clear all checks for this job, keep notes. → `{ ok: true }`. |
+| `PUT /api/applications/[id]/questions/[questionId]` | Upsert check/notes for one question on this job. Body: `checked?` (boolean), `notes?` (string). 404 if the question is neither general nor on this application; 400 on wrong types. → `{ item }`. |
+| `POST /api/applications/[id]/questions/import` | Copy an interview's prep-pack `questionsToAsk` into job-specific questions, skipping case-insensitive duplicates of existing job and general questions. Body: `interviewId` (req). 400 if no prep pack; 404 if the interview isn't on this application. → `{ added }`. |
+
+See [interview questions](../features/interview-questions.md).
+
 ## Calendar
 
 | Method / Path | Purpose |
@@ -141,4 +159,4 @@ See [reminders & analytics](../features/reminders-and-analytics.md).
 ## Related
 
 - [Sessions & middleware](../auth/sessions-and-middleware.md) · [Data model](../architecture/data-model.md) ·
-  [Applications & tracking](../features/applications-and-tracking.md) · [Resume generation](../features/resume-generation.md)
+  [Applications & tracking](../features/applications-and-tracking.md) · [Interview questions](../features/interview-questions.md) · [Resume generation](../features/resume-generation.md)

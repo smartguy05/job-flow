@@ -41,6 +41,10 @@ is unset during build. The proxy defers the connection to the first real query a
   still coming up. Set `SKIP_DB_MIGRATE=1` to skip (e.g. build-time image assembly).
 - **In tests**, `vitest.setup.ts` calls `runMigrations()` per file before seeding.
 
+Recent additions: `0004_concerned_lord_hawal.sql` creates `interview_questions` and
+`application_question_state` (FKs with cascade, unique `app_question_state_uniq`, and
+`interview_questions_user_app_idx`).
+
 ### Migration parity
 
 The same generated SQL must apply cleanly on both pglite and real Postgres. After
