@@ -33,7 +33,7 @@ See [OIDC flow](../auth/oidc-flow.md).
 | `POST /api/applications/[id]/drafts` | Generate + store a draft. Body: `type` (`reply`\|`cover_letter`\|`follow_up`), `extra?`. |
 | `POST /api/applications/[id]/interviews` | Add an interview round. |
 | `GET /api/applications/[id]/files` | List uploaded document metadata (no bytes), including `kind`. |
-| `POST /api/applications/[id]/files` | Upload a document. `multipart/form-data` with a `file` and an optional `kind` (`resume`\|`cover_letter`\|`message`\|`benefits`, defaults to `benefits`). `benefits` accepts PDF only; the other kinds accept PDF or DOCX (`application/vnd.openxmlformats-officedocument.wordprocessingml.document`). ≤10MB. → file metadata (incl. `kind`). |
+| `POST /api/applications/[id]/files` | Upload a document. `multipart/form-data` with a `file` and an optional `kind` (`resume`\|`cover_letter`\|`message`\|`offer_letter`\|`misc`\|`benefits`, defaults to `benefits`). `benefits` accepts PDF only; the other kinds accept PDF or DOCX (`application/vnd.openxmlformats-officedocument.wordprocessingml.document`). ≤10MB. → file metadata (incl. `kind`). |
 | `GET /api/applications/[id]/files/[fileId]` | Stream the file bytes (any `kind`). `?inline=1` to preview. |
 | `DELETE /api/applications/[id]/files/[fileId]` | Delete an uploaded document (any `kind`). |
 

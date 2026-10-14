@@ -683,14 +683,17 @@ function JobDescriptionPanel({
   );
 }
 
-// Upload/list/delete kind of file (resume, cover letter, message, or benefits paperwork)
+// Upload/list/delete kind of file (resume, cover letter, message, offer letter, misc, or
+// benefits paperwork)
 // attached to the application. Store-and-download only — only "benefits" files flow into
 // any offer comparison that includes this application.
 const FILE_KIND_OPTIONS: { value: string; label: string; heading: string }[] = [
   { value: "resume", label: "Resume", heading: "Resumes" },
   { value: "cover_letter", label: "Cover letter", heading: "Cover letters" },
   { value: "message", label: "Message", heading: "Messages" },
+  { value: "offer_letter", label: "Offer letter", heading: "Offer letters" },
   { value: "benefits", label: "Benefits", heading: "Benefits & documents" },
+  { value: "misc", label: "Misc", heading: "Misc" },
 ];
 
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -751,7 +754,8 @@ function BenefitsFilesSection({
         </div>
       </div>
       <p className="text-xs mb-3" style={{ color: "var(--muted)" }}>
-        Upload resumes, cover letters, and messages (PDF or Word) for reference, or benefits
+        Upload resumes, cover letters, messages, offer letters, and misc files (PDF or Word) for
+        reference, or benefits
         paperwork (PDF) — benefits files are used automatically when you compare this offer.
         All uploads are stored for download only.
       </p>
