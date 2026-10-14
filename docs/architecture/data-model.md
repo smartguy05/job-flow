@@ -27,7 +27,7 @@ from, and the [API reference](../api/reference.md) for per-route behavior.
 | `applications` | `id` identity | The core record (~40 columns). `status` (`text`) is one of `applied` \| `in_progress` \| `closed_won` \| `closed_lost` \| `expired`; `appliedAt` is the user-settable applied date; `lastActivityAt` drives reminders + auto-expiry. |
 | `resumes` | `id` identity | Generated resume versions + file bytes. |
 | `interviews` | `id` identity | Interview rounds per application, plus an optional post-interview debrief (`transcript`, `debrief_questions`/`debrief_answers`/`debrief_action_items` as JSON `text`, `debrief_summary`, `debrief_sentiment` JSON, `debrief_at`) and an optional AI **interview prep pack** (`prep_pack_json` — the full pack as JSON `text` — and `prep_generated_at`). Audio is transcribed and discarded — no audio bytes are stored. |
-| `application_files` | `id` identity | Binary documents uploaded against an application. `kind` is one of `benefits` \| `resume` \| `cover_letter` \| `message` (defaults to `benefits`). `data bytea`, plus `name`/`mime_type`/`size`. Only `kind = benefits` files are fed to the model as native document blocks during offer comparison — the other kinds are store-and-download only. |
+| `application_files` | `id` identity | Binary documents uploaded against an application. `kind` is one of `benefits` \| `resume` \| `cover_letter` \| `message` \| `offer_letter` \| `misc` (defaults to `benefits`). `data bytea`, plus `name`/`mime_type`/`size`. Only `kind = benefits` files are fed to the model as native document blocks during offer comparison — the other kinds are store-and-download only. |
 | `offer_comparisons` | `id` identity | Saved offer comparisons. `application_ids` is a JSON `number[]` (not a FK — the snapshot must survive edits/deletes); `result_json` snapshots the deterministic table + AI verdict; optional `title`/`priorities`. |
 | `interview_questions` | `id` identity | Questions the user asks interviewers. `application_id` NULL = general (applies to every job); otherwise specific to that application (`ON DELETE CASCADE`). `text`, `sort_order`. Index `(user_id, application_id)`. |
 | `application_question_state` | `id` identity | Per-job check state + notes for a question. `application_id` + `question_id` (both `ON DELETE CASCADE`), `checked_at` (null = unchecked), `notes`, `updated_at`. Unique `(application_id, question_id)`; no row = unchecked, no notes. See [interview questions](../features/interview-questions.md). |
@@ -61,7 +61,7 @@ Binary files live **in the database**, not on disk:
 - `resumes.docxData` / `resumes.pdfData` are `bytea` (a Drizzle `customType` normalizing
   reads to a Node `Buffer`).
 - `application_files.data` is `bytea` — user-uploaded files (resumes, cover letters,
-  messages, or benefits paperwork; see `kind` above). Uploaded via the proven
+  messages, offer letters, misc, or benefits paperwork; see `kind` above). Uploaded via the proven
   `req.formData()` → `file instanceof File` flow (mirroring the transcript route). Only
   `benefits` files are base64-encoded at comparison time and sent to the model as native
   document blocks; the other kinds are stored purely for download.

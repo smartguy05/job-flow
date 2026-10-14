@@ -26,12 +26,12 @@ when provided; otherwise fit is inferred from the profile + per-offer notes.
 
 ## Application files (upload, store & download)
 
-Users can upload files against an **application** (reusable across comparisons) of four
-kinds — `resume`, `cover_letter`, `message`, `benefits` — stored in `application_files` as
+Users can upload files against an **application** (reusable across comparisons) of six
+kinds — `resume`, `cover_letter`, `message`, `offer_letter`, `misc`, `benefits` — stored in `application_files` as
 `bytea` (see the [data model](../architecture/data-model.md)). `benefits` accepts PDF only;
-the other three kinds accept PDF or DOCX. All four are surfaced in a "Files" panel on the
+the other kinds accept PDF or DOCX. All six are surfaced in a "Files" panel on the
 application detail page, grouped by kind, with a kind selector on upload and per-file
-download/delete. `resume`/`cover_letter`/`message` uploads are store-and-download only — they
+download/delete. All non-`benefits` uploads are store-and-download only — they
 are never sent to an LLM. Only `benefits` detail (often a PDF packet) feeds the AI verdict: a
 comparison automatically pulls the benefits PDFs of every included application and passes
 them to the model.

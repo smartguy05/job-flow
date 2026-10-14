@@ -8,14 +8,21 @@ import { getUser, unauthorized } from "@/lib/auth";
 // accepted. 10MB cap keeps a single packet comfortably within provider document limits.
 const MAX_BYTES = 10 * 1024 * 1024;
 
-const FILE_KINDS = ["benefits", "resume", "cover_letter", "message"] as const;
+const FILE_KINDS = [
+  "benefits",
+  "resume",
+  "cover_letter",
+  "message",
+  "offer_letter",
+  "misc",
+] as const;
 type FileKind = (typeof FILE_KINDS)[number];
 
 const PDF_MIME = "application/pdf";
 const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 // benefits stays PDF-only (it's sent to the model as PDF document blocks during offer
-// comparison); resume/cover_letter/message are pure storage, so PDF or DOCX is fine.
+// comparison); every other kind is pure storage, so PDF or DOCX is fine.
 function allowedMimeTypes(kind: FileKind): string[] {
   return kind === "benefits" ? [PDF_MIME] : [PDF_MIME, DOCX_MIME];
 }
@@ -25,6 +32,8 @@ const KIND_LABELS: Record<FileKind, string> = {
   resume: "Resume",
   cover_letter: "Cover letter",
   message: "Message",
+  offer_letter: "Offer letter",
+  misc: "Misc",
 };
 
 async function ownedApp(applicationId: number, userId: string) {

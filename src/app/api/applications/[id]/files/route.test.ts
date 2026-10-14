@@ -82,7 +82,7 @@ describe("POST /api/applications/[id]/files", () => {
     expect(res.status).toBe(401);
   });
 
-  it.each(["resume", "cover_letter", "message"] as const)(
+  it.each(["resume", "cover_letter", "message", "offer_letter", "misc"] as const)(
     "accepts a PDF for kind=%s",
     async (kind) => {
       const appId = await insertApp();
@@ -105,7 +105,7 @@ describe("POST /api/applications/[id]/files", () => {
     },
   );
 
-  it.each(["resume", "cover_letter", "message"] as const)(
+  it.each(["resume", "cover_letter", "message", "offer_letter", "misc"] as const)(
     "accepts a DOCX for kind=%s",
     async (kind) => {
       const appId = await insertApp();
