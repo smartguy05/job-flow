@@ -5,6 +5,7 @@ import { normalizeCompany } from "@/lib/dedup";
 import { logEvent } from "@/lib/events";
 import { detailFields } from "@/lib/application-fields";
 import { getUser, unauthorized } from "@/lib/auth";
+import { createJobFromApplication } from "@/lib/jobs";
 
 async function getId(ctx: { params: Promise<{ id: string }> }) {
   return parseInt((await ctx.params).id, 10);
@@ -82,7 +83,22 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     hasPdf: !!r.hasPdf,
   }));
 
-  return NextResponse.json({ ...app, contact, resumes: resumeSummaries, interviews, drafts, events, files });
+  const [job] = await db
+    .select({ id: schema.jobs.id })
+    .from(schema.jobs)
+    .where(and(eq(schema.jobs.applicationId, id), eq(schema.jobs.userId, user.id)))
+    .limit(1);
+
+  return NextResponse.json({
+    ...app,
+    contact,
+    resumes: resumeSummaries,
+    interviews,
+    drafts,
+    events,
+    files,
+    jobId: job?.id ?? null,
+  });
 }
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
@@ -123,6 +139,10 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 
   if (body.status !== undefined && body.status !== existing.status) {
     await logEvent(user.id, id, "status_change", `${existing.status} → ${body.status}`);
+    // A won application becomes a tracked job (idempotent: one job per application).
+    if (body.status === "closed_won") {
+      await createJobFromApplication(user.id, { ...existing, ...update } as typeof existing);
+    }
   } else {
     await db
       .update(schema.applications)

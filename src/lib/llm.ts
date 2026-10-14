@@ -5,6 +5,7 @@ import { InterviewPrepSchema, type InterviewPrepPack } from "./interview-prep-co
 import { OfferComparisonVerdictSchema, type OfferComparisonVerdict } from "./offer-comparison-content";
 import { type ComparableApp } from "./offer-comparison";
 import { formatPay } from "./job-fields";
+import { ImportedJobsSchema, type ImportedJob } from "./job-import-content";
 
 function parseJson<T>(text: string): T {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -469,4 +470,22 @@ export async function assistCareerProfile(input: {
     ],
   });
   return text.trim();
+}
+
+// Backfill: pull past positions out of the user's existing career-profile markdown.
+export async function extractJobsFromProfile(input: { userId: string; profile: string }): Promise<ImportedJob[]> {
+  const text = await complete({
+    userId: input.userId,
+    maxTokens: 8000,
+    json: true,
+    system:
+      "You extract a person's employment history from their career-profile markdown. Return one entry per " +
+      "position (a promotion at the same employer may be its own entry). Use only what the document states — " +
+      "do not invent employers, titles, dates, technologies or achievements. Dates as YYYY-MM-DD, YYYY-MM or " +
+      "YYYY; use null when unknown or for a current job's endDate. achievements are the document's own bullet " +
+      'points for that role, lightly condensed. Return JSON: {"jobs":[{"company","title","startDate","endDate",' +
+      '"technologies":[...],"achievements":[...]}]}.',
+    messages: [{ role: "user", content: `Career profile:\n"""\n${input.profile}\n"""` }],
+  });
+  return ImportedJobsSchema.parse(parseJson<unknown>(text)).jobs;
 }

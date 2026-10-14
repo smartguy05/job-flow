@@ -24,8 +24,8 @@ See [OIDC flow](../auth/oidc-flow.md).
 |---|---|
 | `GET /api/applications` | List (with contact + resume count). Lazily expires the caller's stale applications first. |
 | `POST /api/applications` | Create. Body: `roleTitle` (req), `company?`, `contactId?`/`contactName?`, detail fields, `appliedAt?` (ISO date) or `markApplied?` (today). → `{ id }`. |
-| `GET /api/applications/[id]` | Full detail: app, contact, resume summaries (`hasDocx`/`hasPdf`), interviews (incl. prep pack), drafts, events, uploaded `files` (metadata only). |
-| `PATCH /api/applications/[id]` | Partial update; accepts `appliedAt` (ISO date, or `null` to clear); status change logs an event. |
+| `GET /api/applications/[id]` | Full detail: app, contact, resume summaries (`hasDocx`/`hasPdf`), interviews (incl. prep pack), drafts, events, uploaded `files` (metadata only), and `jobId` (the job created from it, or `null`). |
+| `PATCH /api/applications/[id]` | Partial update; accepts `appliedAt` (ISO date, or `null` to clear); status change logs an event. Changing to `closed_won` auto-creates a job (idempotent). |
 | `DELETE /api/applications/[id]` | Delete (children cascade). |
 | `PUT /api/applications/[id]/job-description` | Set the job description used for tailoring. Either JSON `{ jdSnapshot }` (paste/amend) or `multipart/form-data` with a `file` (PDF/Word/text, ≤10MB — text extracted server-side). Logs a `jd_updated` event. → `{ jdSnapshot }`. |
 | `POST /api/applications/[id]/generate` | Generate a tailored resume version → `{ resumeId }`. 404 if app not owned. |
@@ -71,6 +71,27 @@ See [resume generation](../features/resume-generation.md).
 | `DELETE /api/career-files/[id]` | Delete. |
 | `GET /api/resume-skill` | `{ content, isDefault, default, updatedAt }`. |
 | `PUT /api/resume-skill` | Save skill (empty reverts to the shipped default). Body: `content`. |
+
+## Jobs (employment history)
+
+| Method / Path | Purpose |
+|---|---|
+| `GET /api/jobs` | List jobs (current first) with `technologies[]` and `tenureMonths`. |
+| `POST /api/jobs` | Create. Body: `company`, `title` (req), `startDate?`/`endDate?` (`YYYY-MM-DD`), `team?`, `manager?`, `employmentType?`, `locationMode?`, `location?`, `technologies?` (array or comma string), `reasonForLeaving?`, `notes?`. → `{ id }`. |
+| `GET /api/jobs/[id]` | `{ job, compensation, compSummary, benefits, entries, technologies }`. |
+| `PATCH /api/jobs/[id]` | Partial update (same fields); clears `profileSyncedAt`. |
+| `DELETE /api/jobs/[id]` | Delete (comp, benefits, journal cascade). |
+| `GET/POST /api/jobs/[id]/compensation` | List / add a comp row. Body: `kind`, `effectiveDate`, `baseAmount`, `currency`, `period` (`year`\|`hour`), `title`, `bonus`, `equity`, `notes`. |
+| `PATCH/DELETE /api/jobs/[id]/compensation/[compId]` | Edit / remove a comp row. |
+| `PUT /api/jobs/[id]/benefits` | Upsert benefits: `health`, `retirement`, `ptoDays`, `parentalLeave`, `remotePolicy`, `other`. |
+| `GET/POST /api/jobs/[id]/journal` | List / add a journal entry. Body: `title` (req), `kind` (`achievement`\|`feedback`\|`complaint`\|`note`), `entryDate?` (default today), `body?`, `impact?`, `technologies?`. |
+| `PATCH/DELETE /api/journal/[id]` | Edit (clears `syncedAt`) / delete an entry. |
+| `POST /api/jobs/profile-sync` | AI-proposed career-profile update from pending jobs + achievements/feedback (never complaints, notes, pay or benefits). Body: `jobIds?`. → `{ current, proposed, entryIds, jobIds }`; nothing saved. 400 if nothing pending. |
+| `POST /api/journal/mark-synced` | Body: `entryIds[]`, `jobIds?[]` — mark as folded into the profile (call after `PUT /api/career-profile`). |
+| `POST /api/jobs/import` | Extract past jobs from the career profile → `{ jobs: [...{ duplicate }] }`; nothing saved. 400 if profile empty. |
+| `POST /api/jobs/import/confirm` | Body: `{ jobs }` (from the preview). Creates jobs + achievement entries (already synced), skipping duplicates. → `{ created, skipped }`. |
+
+See [employment history](../features/employment-history.md).
 
 ## Interviews
 

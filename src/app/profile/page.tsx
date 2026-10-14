@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { api, fmtDate } from "@/lib/ui";
+import { ProfileSyncPanel } from "@/components/ProfileSyncPanel";
 
 type CareerFile = { id: number; name: string; content: string; updatedAt: string | null };
 
@@ -134,6 +136,16 @@ export default function ProfilePage() {
           Source of truth for every generated resume. Last updated {fmtDate(updatedAt)}.
         </p>
       </div>
+
+      <section className="card p-4">
+        <h2 className="font-semibold mb-1">Sync from your jobs</h2>
+        <p className="text-sm mb-2" style={{ color: "var(--muted)" }}>
+          Fold new <Link href="/jobs" className="hover:underline" style={{ color: "var(--accent)" }}>jobs</Link>,
+          title changes, technologies and journal achievements into your profile. Complaints, notes, pay and
+          benefits are never included.
+        </p>
+        <ProfileSyncPanel onSaved={(c) => { setContent(c); setUpdatedAt(new Date().toISOString()); }} />
+      </section>
 
       <section className="card p-4">
         <h2 className="font-semibold mb-2">Add details with AI</h2>

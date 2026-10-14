@@ -43,7 +43,9 @@ is unset during build. The proxy defers the connection to the first real query a
 
 Recent additions: `0004_concerned_lord_hawal.sql` creates `interview_questions` and
 `application_question_state` (FKs with cascade, unique `app_question_state_uniq`, and
-`interview_questions_user_app_idx`).
+`interview_questions_user_app_idx`). `0005_cynical_george_stacy.sql` creates the
+employment-history tables `jobs`, `job_compensation`, `job_benefits` and `journal_entries`
+(unique `jobs_user_application_uq`; see [employment history](../features/employment-history.md)).
 
 ### Migration parity
 

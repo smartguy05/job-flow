@@ -14,6 +14,7 @@ import {
   synthesizeDebrief,
   generateInterviewPrep,
   generateOfferComparison,
+  extractJobsFromProfile,
 } from "./llm";
 import { makeResumeContent } from "@/test/fixtures";
 import type { ComparableApp } from "./offer-comparison";
@@ -287,5 +288,25 @@ describe("generateOfferComparison", () => {
     expect(opts.documents).toHaveLength(1);
     expect(opts.documents![0].name).toBe("b.pdf");
     expect(opts.messages[0].content).toMatch(/remote first/);
+  });
+});
+
+describe("extractJobsFromProfile", () => {
+  it("parses and validates extracted jobs, passing the profile to the model", async () => {
+    mockComplete.mockResolvedValue(
+      "```json\n" +
+        JSON.stringify({
+          jobs: [{ company: "Acme", title: "Dev", startDate: "2020-03", endDate: "present", technologies: ["Go"], achievements: ["Built X"] }],
+        }) +
+        "\n```",
+    );
+    const jobs = await extractJobsFromProfile({ userId: globalThis.__testUserId, profile: "# Me\nAcme 2020-" });
+    expect(jobs).toEqual([
+      { company: "Acme", title: "Dev", startDate: "2020-03-01", endDate: null, technologies: ["Go"], achievements: ["Built X"] },
+    ]);
+    const call = mockComplete.mock.calls[0][0];
+    expect(call.json).toBe(true);
+    expect(JSON.stringify(call.messages)).toContain("Acme 2020-");
+    expect(call.system).toMatch(/do not invent/i);
   });
 });

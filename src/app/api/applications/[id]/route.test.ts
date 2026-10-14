@@ -70,6 +70,29 @@ describe("PATCH /api/applications/[id]", () => {
     expect(events.some((e) => e.type === "status_change" && e.detail === "applied → in_progress")).toBe(true);
   });
 
+  it("auto-creates a job (once) when marked closed_won, with pay + benefits, and links it in GET", async () => {
+    const id = await insertApp({ status: "in_progress", payMin: 140000, payMax: 160000, payPeriod: "year", benefits: "PPO + 401k" });
+    expect((await PATCH(req(`/api/applications/${id}`, "PATCH", { status: "closed_won" }), ctx(id))).status).toBe(200);
+    // Bounce status and win again: still one job.
+    await PATCH(req(`/api/applications/${id}`, "PATCH", { status: "in_progress" }), ctx(id));
+    await PATCH(req(`/api/applications/${id}`, "PATCH", { status: "closed_won" }), ctx(id));
+    const jobs = await db.select().from(schema.jobs).where(eq(schema.jobs.applicationId, id));
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0]).toMatchObject({ company: "Globex Corp", title: "AI Engineer", userId: globalThis.__testUserId });
+    const comp = await db.select().from(schema.jobCompensation).where(eq(schema.jobCompensation.jobId, jobs[0].id));
+    expect(comp.map((c) => c.baseAmount)).toEqual([160000]);
+    const body = await (await GET(req(`/api/applications/${id}`), ctx(id))).json();
+    expect(body.jobId).toBe(jobs[0].id);
+  });
+
+  it("does not create a job for other statuses", async () => {
+    const id = await insertApp({ status: "applied" });
+    await PATCH(req(`/api/applications/${id}`, "PATCH", { status: "closed_lost" }), ctx(id));
+    expect(await db.select().from(schema.jobs).where(eq(schema.jobs.applicationId, id))).toHaveLength(0);
+    const body = await (await GET(req(`/api/applications/${id}`), ctx(id))).json();
+    expect(body.jobId).toBeNull();
+  });
+
   it("updates notes without a status event", async () => {
     const id = await insertApp();
     await PATCH(req(`/api/applications/${id}`, "PATCH", { notes: "called back" }), ctx(id));

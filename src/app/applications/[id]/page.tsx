@@ -19,6 +19,7 @@ type Detail = {
   roleTitle: string;
   link: string | null;
   status: string;
+  jobId: number | null;
   notes: string | null;
   jdSnapshot: string | null;
   appliedAt: string | null;
@@ -128,6 +129,7 @@ export default function ApplicationDetail() {
               onChange={(e) => changeStatus(e.target.value)}>
               {STATUS_ORDER.map((s) => <option key={s} value={s}>{STATUS_LABELS[s]}</option>)}
             </select>
+            {d.jobId && <Link href={`/jobs/${d.jobId}`} className="btn btn-primary">View job</Link>}
             <Link href={`/applications/${id}/questions`} className="btn btn-ghost">Questions</Link>
             <button className="btn btn-danger" onClick={del}>Delete</button>
           </div>
