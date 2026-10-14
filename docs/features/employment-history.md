@@ -22,7 +22,7 @@ Logic lives in `src/lib/jobs.ts`, `src/lib/job-input.ts`, `src/lib/profile-sync.
 
   A unique index on `(user_id, application_id)` makes this idempotent: moving an application out of and back into `closed_won` never creates a second job. The application detail page then shows a **View job** button, using `jobId` from the GET response.
 - **Manually**, with **Add job** on `/jobs`.
-- **Backfill import** from the career profile (see below).
+- **Backfill import** from the career profile, and from applications that were already `closed_won` before job tracking existed (see below).
 
 ## Compensation timeline
 
@@ -62,9 +62,20 @@ The sync panel appears on each job page (scoped to that job) and on the Career p
 
 ## Backfill import
 
-1. `POST /api/jobs/import` runs `extractJobsFromProfile()` (`src/lib/llm.ts`) over the career profile. The output is validated by `ImportedJobsSchema`, which normalizes `YYYY` and `YYYY-MM` dates to full dates and turns unknown dates into null.
-2. It returns a preview, with each job flagged `duplicate` when it matches an existing job by `jobKey()`: normalized company + start date + title.
-3. `POST /api/jobs/import/confirm` saves the jobs you selected and skips duplicates. Each achievement becomes a journal entry. Both jobs and entries are created **already synced**, because their content came from the profile.
+**Import from profile & applications** on `/jobs` builds one preview from two sources:
+- **Won applications without a job.** `unlinkedWonApplications()` finds `closed_won` applications with no linked job, such as ones won before job tracking existed. Each is dated by `wonDateFrom()`: the latest `status_change` event into `closed_won`, or the application's `updatedAt` if there is none.
+- **Jobs found in the career profile.** `extractJobsFromProfile()` (`src/lib/llm.ts`) reads the profile. Its output is validated by `ImportedJobsSchema`, which normalizes `YYYY` and `YYYY-MM` dates to full dates and turns unknown dates into null. If the profile is empty, the model call is skipped. The preview returns 400 only when there is nothing to import from either source.
+
+Every item carries `match`, computed by `matchExisting()`:
+- `"exact"`: same normalized company, start date and title as a tracked job (`jobKey()`).
+- `"possible"`: same company, but different dates or title. For example, a job created when you won the application may be dated differently from how your profile lists it.
+- `null`: no match.
+
+Profile jobs are also matched against the won applications in the same preview, so one job appearing in both lists gets flagged. Items marked `exact` or `possible` start unchecked.
+
+`POST /api/jobs/import/confirm` takes `{ jobs?, applicationIds? }`:
+- **Profile jobs** are created with their achievements as journal entries, all **already synced** (their content came from the profile). Exact duplicates are skipped.
+- **Each application id** gets a job through `createJobFromApplication()`, which fills it from the application's pay and benefits and starts it on the won date. Those jobs are *not* marked synced, so the next profile sync offers them. Ids that aren't the caller's, aren't won, or already have a job are skipped.
 
 ## Related
 

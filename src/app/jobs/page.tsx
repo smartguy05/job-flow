@@ -24,8 +24,30 @@ type ImportedJob = {
   endDate: string | null;
   technologies: string[];
   achievements: string[];
-  duplicate: boolean;
+  match: Match;
 };
+
+type Match = "exact" | "possible" | null;
+
+type WonApplication = {
+  applicationId: number;
+  company: string;
+  roleTitle: string;
+  wonDate: string;
+  pay: string | null;
+  match: Match;
+};
+
+type Preview = { jobs: ImportedJob[]; applications: WonApplication[] };
+
+function MatchBadge({ match }: { match: Match }) {
+  if (!match) return null;
+  return (
+    <span className="badge ml-2" style={match === "exact" ? { background: "var(--surface-2)" } : { background: "#fef3c7", color: "#92400e" }}>
+      {match === "exact" ? "already tracked" : "possible duplicate"}
+    </span>
+  );
+}
 
 export default function JobsPage() {
   const [jobs, setJobs] = useState<Job[] | null>(null);
@@ -33,8 +55,9 @@ export default function JobsPage() {
   const [form, setForm] = useState({ company: "", title: "", startDate: "", endDate: "" });
   const [busy, setBusy] = useState("");
   const [err, setErr] = useState("");
-  const [preview, setPreview] = useState<ImportedJob[] | null>(null);
-  const [picked, setPicked] = useState<Set<number>>(new Set());
+  const [preview, setPreview] = useState<Preview | null>(null);
+  // Selected items, keyed "job:<index>" (profile) or "app:<applicationId>" (won application).
+  const [picked, setPicked] = useState<Set<string>>(new Set());
 
   function load() {
     api<Job[]>("/api/jobs").then(setJobs);
@@ -57,9 +80,15 @@ export default function JobsPage() {
     setBusy("import");
     setErr("");
     try {
-      const { jobs: found } = await api<{ jobs: ImportedJob[] }>("/api/jobs/import", { method: "POST", body: "{}" });
+      const found = await api<Preview>("/api/jobs/import", { method: "POST", body: "{}" });
       setPreview(found);
-      setPicked(new Set(found.map((j, i) => (j.duplicate ? -1 : i)).filter((i) => i >= 0)));
+      // Pre-select only items that don't look like something already tracked.
+      setPicked(
+        new Set([
+          ...found.applications.filter((a) => !a.match).map((a) => `app:${a.applicationId}`),
+          ...found.jobs.flatMap((j, i) => (j.match ? [] : [`job:${i}`])),
+        ]),
+      );
     } catch (e) {
       setErr((e as Error).message);
     } finally {
@@ -71,8 +100,11 @@ export default function JobsPage() {
     if (!preview) return;
     setBusy("confirm");
     try {
-      const chosen = preview.filter((_, i) => picked.has(i));
-      await api("/api/jobs/import/confirm", { method: "POST", body: JSON.stringify({ jobs: chosen }) });
+      const jobs = preview.jobs.filter((_, i) => picked.has(`job:${i}`));
+      const applicationIds = preview.applications
+        .filter((a) => picked.has(`app:${a.applicationId}`))
+        .map((a) => a.applicationId);
+      await api("/api/jobs/import/confirm", { method: "POST", body: JSON.stringify({ jobs, applicationIds }) });
       setPreview(null);
       load();
     } catch (e) {
@@ -82,7 +114,7 @@ export default function JobsPage() {
     }
   }
 
-  const toggle = (i: number) =>
+  const toggle = (i: string) =>
     setPicked((prev) => {
       const next = new Set(prev);
       if (next.has(i)) next.delete(i);
@@ -101,7 +133,7 @@ export default function JobsPage() {
         </div>
         <div className="flex gap-2">
           <button className="btn btn-ghost" disabled={busy !== ""} onClick={startImport}>
-            {busy === "import" ? "Reading profile…" : "Import from career profile"}
+            {busy === "import" ? "Looking for jobs…" : "Import from profile & applications"}
           </button>
           <button className="btn btn-primary" onClick={() => setAdding(!adding)}>Add job</button>
         </div>
@@ -136,26 +168,48 @@ export default function JobsPage() {
 
       {preview && (
         <section className="card p-4">
-          <h2 className="font-semibold mb-1">Jobs found in your profile</h2>
+          <h2 className="font-semibold mb-1">Jobs to import</h2>
           <p className="text-sm mb-3" style={{ color: "var(--muted)" }}>
-            Pick the ones to add. Their achievements become journal entries. Jobs you already track are unchecked.
+            Pick the ones to add. Anything that looks like a job you already track (or appears in both lists) starts unchecked.
           </p>
-          {preview.length === 0 && <p className="text-sm">No jobs found.</p>}
-          <div className="flex flex-col gap-2">
-            {preview.map((j, i) => (
-              <label key={i} className="flex items-start gap-2 rounded-md border p-2" style={{ borderColor: "var(--border)" }}>
-                <input type="checkbox" className="mt-1" checked={picked.has(i)} onChange={() => toggle(i)} />
-                <span className="text-sm">
-                  <span className="font-semibold">{j.title}</span> at {j.company}
-                  <span style={{ color: "var(--muted)" }}> · {j.startDate ?? "?"} – {j.endDate ?? "present"}</span>
-                  {j.duplicate && <span className="badge ml-2" style={{ background: "var(--surface-2)" }}>already tracked</span>}
-                  {j.achievements.length > 0 && (
-                    <span className="block" style={{ color: "var(--muted)" }}>{j.achievements.length} achievement(s)</span>
-                  )}
-                </span>
-              </label>
-            ))}
-          </div>
+          {preview.applications.length === 0 && preview.jobs.length === 0 && <p className="text-sm">No jobs found.</p>}
+          {preview.applications.length > 0 && (
+            <>
+              <h3 className="label mt-1">Won applications without a job</h3>
+              <div className="flex flex-col gap-2 mb-3">
+                {preview.applications.map((a) => (
+                  <label key={a.applicationId} className="flex items-start gap-2 rounded-md border p-2" style={{ borderColor: "var(--border)" }}>
+                    <input type="checkbox" className="mt-1" checked={picked.has(`app:${a.applicationId}`)} onChange={() => toggle(`app:${a.applicationId}`)} />
+                    <span className="text-sm">
+                      <span className="font-semibold">{a.roleTitle}</span> at {a.company}
+                      <span style={{ color: "var(--muted)" }}> · won {a.wonDate}{a.pay ? ` · ${a.pay}` : ""}</span>
+                      <MatchBadge match={a.match} />
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </>
+          )}
+          {preview.jobs.length > 0 && (
+            <>
+              <h3 className="label mt-1">Found in your career profile</h3>
+              <div className="flex flex-col gap-2">
+                {preview.jobs.map((j, i) => (
+                  <label key={i} className="flex items-start gap-2 rounded-md border p-2" style={{ borderColor: "var(--border)" }}>
+                    <input type="checkbox" className="mt-1" checked={picked.has(`job:${i}`)} onChange={() => toggle(`job:${i}`)} />
+                    <span className="text-sm">
+                      <span className="font-semibold">{j.title}</span> at {j.company}
+                      <span style={{ color: "var(--muted)" }}> · {j.startDate ?? "?"} – {j.endDate ?? "present"}</span>
+                      <MatchBadge match={j.match} />
+                      {j.achievements.length > 0 && (
+                        <span className="block" style={{ color: "var(--muted)" }}>{j.achievements.length} achievement(s)</span>
+                      )}
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </>
+          )}
           <div className="flex gap-2 mt-3">
             <button className="btn btn-primary" disabled={busy !== "" || picked.size === 0} onClick={confirmImport}>
               {busy === "confirm" ? "Importing…" : `Import ${picked.size}`}

@@ -9,6 +9,7 @@ import {
   uniqueIndex,
   customType,
   date,
+  boolean,
 } from "drizzle-orm/pg-core";
 
 const now = () => new Date();
@@ -448,4 +449,29 @@ export const journalEntries = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().$defaultFn(now),
   },
   (t) => [index("journal_entries_user_job_idx").on(t.userId, t.jobId)],
+);
+
+// Prior inventions / original works of authorship — the "Exhibit A" a user attaches to an
+// employer's invention-assignment agreement. Private unless includeInResume opts an entry
+// into resume-generation context (see getCareerInfo).
+export const inventions = pgTable(
+  "inventions",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    inventionDate: text("invention_date"), // free text: "2019", "2019–2021", "Mar 2020"
+    identifier: text("identifier"), // repo URL, patent / application number
+    kind: text("kind").notNull().default("software"), // software | invention | authorship | other
+    technologies: text("technologies").notNull().default("[]"), // JSON string[]
+    includeInResume: boolean("include_in_resume").notNull().default(false),
+    notes: text("notes"), // private, never exported
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().$defaultFn(now),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().$defaultFn(now),
+  },
+  (t) => [index("inventions_user_sort_idx").on(t.userId, t.sortOrder)],
 );

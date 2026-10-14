@@ -22,6 +22,7 @@ documents how the system is built and operated. Start here and follow the links.
 - [Interview prep](features/interview-prep.md) — AI prep pack per interview round (questions + answers, questions to ask, study checklist), regenerable and editable.
 - [Interview questions](features/interview-questions.md) — checklist of questions to ask interviewers: general (all jobs) + job-specific, per-job checks and answer notes, import from prep pack.
 - [Employment history](features/employment-history.md) — jobs you hold: comp timeline, benefits, work journal (achievements, technologies, complaints), AI profile sync with approval, backfill import; auto-created on `closed_won`.
+- [Prior inventions (Exhibit A)](features/prior-inventions.md) — structured list of prior inventions/works of authorship; AI drafting (describe, GitHub repo, suggest from history, import), DOCX/PDF/text export, per-entry opt-in to resumes.
 - [Offer comparison](features/offer-comparison.md) — side-by-side table + AI verdict across competing offers, with benefits-PDF upload.
 - [Reminders & analytics](features/reminders-and-analytics.md) — per-user reminder sweep, ntfy, analytics.
 - [Mobile & PWA](features/mobile-and-pwa.md) — mobile-first responsive shell, bottom-nav + drawer, installable PWA.

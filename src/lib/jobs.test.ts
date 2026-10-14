@@ -9,6 +9,8 @@ import {
   compSummary,
   tenureMonths,
   createJobFromApplication,
+  matchExisting,
+  wonDateFrom,
 } from "./jobs";
 
 describe("parseTechList", () => {
@@ -131,5 +133,39 @@ describe("createJobFromApplication", () => {
     expect(comp[0].baseAmount).toBe(200000);
     const [ben] = await db.select().from(schema.jobBenefits).where(eq(schema.jobBenefits.jobId, first!));
     expect(ben.other).toBe("Great health");
+  });
+});
+
+describe("matchExisting", () => {
+  const existing = [{ company: "Globex Corp", title: "AI Engineer", startDate: "2026-10-14" }];
+  it("is exact on company + start date + title", () => {
+    expect(matchExisting({ company: "globex", title: "ai engineer ", startDate: "2026-10-14" }, existing)).toBe("exact");
+  });
+  it("is possible when only the company matches", () => {
+    expect(matchExisting({ company: "Globex Inc", title: "Senior AI Engineer", startDate: "2026-09-01" }, existing)).toBe("possible");
+  });
+  it("is null for a different company", () => {
+    expect(matchExisting({ company: "Initech", title: "AI Engineer", startDate: "2026-10-14" }, existing)).toBeNull();
+    expect(matchExisting({ company: "Globex", title: "x", startDate: null }, [])).toBeNull();
+  });
+});
+
+describe("wonDateFrom", () => {
+  const fallback = new Date("2026-03-03T12:00:00Z");
+  it("uses the latest status change into closed_won", () => {
+    expect(
+      wonDateFrom(
+        [
+          { type: "status_change", detail: "in_progress → closed_won", createdAt: new Date("2025-01-10T10:00:00Z") },
+          { type: "status_change", detail: "closed_won → in_progress", createdAt: new Date("2025-02-01T10:00:00Z") },
+          { type: "status_change", detail: "in_progress → closed_won", createdAt: new Date("2025-02-05T10:00:00Z") },
+          { type: "note", detail: "→ closed_won", createdAt: new Date("2025-06-01T10:00:00Z") },
+        ],
+        fallback,
+      ),
+    ).toBe("2025-02-05");
+  });
+  it("falls back when no such event exists", () => {
+    expect(wonDateFrom([{ type: "created", detail: null, createdAt: new Date("2024-01-01") }], fallback)).toBe("2026-03-03");
   });
 });
