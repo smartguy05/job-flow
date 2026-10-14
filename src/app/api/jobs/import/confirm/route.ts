@@ -3,16 +3,23 @@ import { db, schema } from "@/db";
 import { eq } from "drizzle-orm";
 import { getUser, unauthorized } from "@/lib/auth";
 import { ImportedJobsSchema } from "@/lib/job-import-content";
-import { jobKey, mergeTechnologies, todayISO } from "@/lib/jobs";
+import { createJobFromApplication, jobKey, mergeTechnologies, todayISO, unlinkedWonApplications } from "@/lib/jobs";
 import { normalizeCompany } from "@/lib/dedup";
 
-// Save the jobs the user selected from the import preview. Their facts and achievements
-// came from the profile, so jobs and entries are created already marked as synced.
+// Save what the user selected from the import preview:
+// - `jobs` (from the profile): facts and achievements came from the profile, so jobs and
+//   entries are created already marked as synced; duplicates are skipped.
+// - `applicationIds`: closed_won applications without a job get one, started on the date
+//   they were won. Anything not owned, not won, or already linked is skipped.
 export async function POST(req: NextRequest) {
   const user = await getUser(req);
   if (!user) return unauthorized();
-  const parsed = ImportedJobsSchema.safeParse(await req.json());
-  if (!parsed.success) return NextResponse.json({ error: "Invalid jobs payload" }, { status: 400 });
+  const body = await req.json();
+  const parsed = ImportedJobsSchema.safeParse({ jobs: body.jobs ?? [] });
+  const applicationIds: unknown = body.applicationIds ?? [];
+  if (!parsed.success || !Array.isArray(applicationIds) || !applicationIds.every((n) => Number.isInteger(n))) {
+    return NextResponse.json({ error: "Invalid import payload" }, { status: 400 });
+  }
 
   const seen = new Set(
     (await db.select().from(schema.jobs).where(eq(schema.jobs.userId, user.id))).map(jobKey),
@@ -54,6 +61,16 @@ export async function POST(req: NextRequest) {
         })),
       );
     }
+    created++;
+  }
+  const won = new Map((await unlinkedWonApplications(user.id)).map((w) => [w.app.id, w]));
+  for (const id of new Set(applicationIds as number[])) {
+    const w = won.get(id);
+    if (!w) {
+      skipped++;
+      continue;
+    }
+    await createJobFromApplication(user.id, w.app, w.wonDate);
     created++;
   }
   return NextResponse.json({ created, skipped });

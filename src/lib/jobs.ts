@@ -1,5 +1,5 @@
 import { db, schema } from "@/db";
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray, isNull } from "drizzle-orm";
 import { normalizeCompany } from "@/lib/dedup";
 
 // Employment-history helpers: mapping a won application to a job, comp-timeline maths,
@@ -194,4 +194,57 @@ export function sortJobs<T extends { endDate: string | null; startDate: string |
 // Identity used to skip re-importing a job that is already tracked.
 export function jobKey(j: { company: string; title: string; startDate: string | null }): string {
   return `${normalizeCompany(j.company)}|${j.startDate ?? ""}|${j.title.trim().toLowerCase()}`;
+}
+
+type JobIdentity = { company: string; title: string; startDate: string | null };
+
+// How an import candidate relates to jobs already tracked: "exact" (same company, start
+// date and title), "possible" (same company, different dates/title), or null.
+export function matchExisting(candidate: JobIdentity, existing: JobIdentity[]): "exact" | "possible" | null {
+  const key = jobKey(candidate);
+  if (existing.some((e) => jobKey(e) === key)) return "exact";
+  const company = normalizeCompany(candidate.company);
+  return existing.some((e) => normalizeCompany(e.company) === company) ? "possible" : null;
+}
+
+// Date (YYYY-MM-DD) an application was won: its latest status change into closed_won,
+// else `fallback` (used when backfilling jobs for applications won before jobs existed).
+export function wonDateFrom(
+  events: { type: string; detail: string | null; createdAt: Date }[],
+  fallback: Date,
+): string {
+  const won = events
+    .filter((e) => e.type === "status_change" && e.detail?.endsWith("→ closed_won"))
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime())[0];
+  return (won?.createdAt ?? fallback).toISOString().slice(0, 10);
+}
+
+// The user's closed_won applications that have no job yet (e.g. won before job tracking
+// existed), each with the date it was won.
+export async function unlinkedWonApplications(userId: string) {
+  const apps = (
+    await db
+      .select({ app: schema.applications })
+      .from(schema.applications)
+      .leftJoin(
+        schema.jobs,
+        and(eq(schema.jobs.applicationId, schema.applications.id), eq(schema.jobs.userId, userId)),
+      )
+      .where(
+        and(
+          eq(schema.applications.userId, userId),
+          eq(schema.applications.status, "closed_won"),
+          isNull(schema.jobs.id),
+        ),
+      )
+  ).map((r) => r.app);
+  if (apps.length === 0) return [];
+  const events = await db
+    .select()
+    .from(schema.events)
+    .where(and(eq(schema.events.userId, userId), inArray(schema.events.applicationId, apps.map((a) => a.id))));
+  return apps.map((app) => ({
+    app,
+    wonDate: wonDateFrom(events.filter((e) => e.applicationId === app.id), app.updatedAt),
+  }));
 }

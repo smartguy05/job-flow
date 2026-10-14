@@ -88,8 +88,8 @@ See [resume generation](../features/resume-generation.md).
 | `PATCH/DELETE /api/journal/[id]` | Edit (clears `syncedAt`) / delete an entry. |
 | `POST /api/jobs/profile-sync` | AI-proposed career-profile update from pending jobs + achievements/feedback (never complaints, notes, pay or benefits). Body: `jobIds?`. → `{ current, proposed, entryIds, jobIds }`; nothing saved. 400 if nothing pending. |
 | `POST /api/journal/mark-synced` | Body: `entryIds[]`, `jobIds?[]` — mark as folded into the profile (call after `PUT /api/career-profile`). |
-| `POST /api/jobs/import` | Extract past jobs from the career profile → `{ jobs: [...{ duplicate }] }`; nothing saved. 400 if profile empty. |
-| `POST /api/jobs/import/confirm` | Body: `{ jobs }` (from the preview). Creates jobs + achievement entries (already synced), skipping duplicates. → `{ created, skipped }`. |
+| `POST /api/jobs/import` | Backfill preview → `{ jobs, applications }`: past jobs extracted from the career profile (model skipped if the profile is empty) and `closed_won` applications without a job (`applicationId`, `company`, `roleTitle`, `wonDate`, `pay`). Each item has `match`: `"exact"` \| `"possible"` \| `null`. Nothing saved. 400 if there is neither a profile nor a won application to import. |
+| `POST /api/jobs/import/confirm` | Body: `{ jobs?, applicationIds? }`. Profile jobs → jobs + achievement entries (already synced), skipping exact duplicates; application ids → jobs filled from the application, starting on the won date (others' / non-won / already-linked ids skipped). → `{ created, skipped }`. |
 
 See [employment history](../features/employment-history.md).
 
