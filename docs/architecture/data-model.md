@@ -36,6 +36,10 @@ from, and the [API reference](../api/reference.md) for per-route behavior.
 | `career_profile` | `userId` PK | One master career-info markdown per user. |
 | `career_files` | `id` identity | Supplementary source docs (many per user). |
 | `resume_skill` | `userId` PK | Editable generation instructions (falls back to default). |
+| `jobs` | `id` identity | Positions held. `application_id` (nullable, `ON DELETE SET NULL`) links a job auto-created from a `closed_won` application; unique `(user_id, application_id)` makes that idempotent. `start_date`/`end_date` are `date` (null end = current); `technologies` is a JSON `string[]`; `profile_synced_at` (null = not yet folded into the career profile). See [employment history](../features/employment-history.md). |
+| `job_compensation` | `id` identity | Comp timeline per job (`ON DELETE CASCADE`): `kind` (`start`\|`raise`\|`promotion`\|`adjustment`\|`bonus_payout`\|`equity_grant`), `effective_date`, `base_amount`, `currency`, `period`, `title`, `bonus`, `equity`, `notes`. |
+| `job_benefits` | `job_id` PK | One benefits row per job: `health`, `retirement`, `pto_days`, `parental_leave`, `remote_policy`, `other`. |
+| `journal_entries` | `id` identity | Work journal per job (`ON DELETE CASCADE`): `kind` (`achievement`\|`feedback`\|`complaint`\|`note`), `entry_date`, `title`, `body`, `impact`, `technologies` (JSON `string[]`), `synced_at` (null = pending profile sync). |
 
 Integer PKs use `GENERATED ALWAYS AS IDENTITY`. Timestamps are `timestamptz` with a
 JS-side default (`$defaultFn(() => new Date())`).
@@ -50,6 +54,9 @@ JS-side default (`$defaultFn(() => new Date())`).
 - `interview_questions.applicationId → applications.id` (nullable, `ON DELETE CASCADE`);
   `application_question_state.applicationId` / `.questionId` cascade from `applications` /
   `interview_questions`.
+- `jobs.applicationId → applications.id` (nullable, `ON DELETE SET NULL`) — deleting the
+  application keeps the job. `job_compensation` / `job_benefits` / `journal_entries . jobId →
+  jobs.id` (`ON DELETE CASCADE`).
 - `offer_comparisons` carries only `userId → users.id` (`ON DELETE CASCADE`); it references
   applications by id inside `application_ids`/`result_json` rather than by FK, so a saved
   comparison remains intact if an included application is later changed or deleted.

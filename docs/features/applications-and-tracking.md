@@ -48,7 +48,8 @@ same user to the same normalized company and a similar role (Jaccard token simil
 
 `applied` → `in_progress` → `closed_won` / `closed_lost`, plus the terminal `expired` set
 automatically by [auto-expiry](reminders-and-analytics.md#auto-expiry-srclibexpiryts) after a
-configurable inactivity window. Any status is reachable from the detail page's status
+configurable inactivity window. Moving an application to `closed_won` automatically creates
+a tracked job (pay and benefits pre-filled) — see [employment history](employment-history.md). Any status is reachable from the detail page's status
 dropdown, so an expired application can be revived by changing it back. Status metadata
 (labels, ordering, colors) lives in `src/lib/ui.ts`.
 
@@ -145,6 +146,6 @@ List/create recruiters and agency contacts (per user). Applications reference a 
 
 ## Related
 
-- [Resume generation](resume-generation.md) · [Reminders & analytics](reminders-and-analytics.md) ·
+- [Resume generation](resume-generation.md) · [Employment history](employment-history.md) · [Reminders & analytics](reminders-and-analytics.md) ·
   [Offer comparison](offer-comparison.md) · [Interview questions](interview-questions.md) · [Data model](../architecture/data-model.md) ·
   [API reference](../api/reference.md)

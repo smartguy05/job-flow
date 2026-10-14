@@ -14,6 +14,7 @@ const NAV = [
   { href: "/capture", label: "New application", primary: true, icon: "＋", short: "New" },
   { href: "/analytics", label: "Analytics", primary: true, icon: "📊" },
   { href: "/offers", label: "Offers", icon: "⚖️" },
+  { href: "/jobs", label: "Jobs", icon: "💼" },
   { href: "/profile", label: "Career profile", icon: "👤" },
   { href: "/contacts", label: "Contacts", icon: "📇" },
   { href: "/questions", label: "Questions", icon: "❓" },

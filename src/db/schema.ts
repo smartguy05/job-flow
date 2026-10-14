@@ -8,6 +8,7 @@ import {
   index,
   uniqueIndex,
   customType,
+  date,
 } from "drizzle-orm/pg-core";
 
 const now = () => new Date();
@@ -344,4 +345,107 @@ export const applicationQuestionState = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().$defaultFn(now),
   },
   (t) => [uniqueIndex("app_question_state_uniq").on(t.applicationId, t.questionId)],
+);
+
+// --- Employment history: jobs the user has held, with comp, benefits and a work journal ---
+
+// One row per position held. applicationId links a job created from a won application
+// (unique per user so auto-creation on closed_won is idempotent). endDate null = current.
+export const jobs = pgTable(
+  "jobs",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    applicationId: integer("application_id").references(() => applications.id, { onDelete: "set null" }),
+    company: text("company").notNull(),
+    companyNormalized: text("company_normalized").notNull(),
+    title: text("title").notNull(),
+    startDate: date("start_date", { mode: "string" }), // YYYY-MM-DD
+    endDate: date("end_date", { mode: "string" }), // null = current job
+    employmentType: text("employment_type"),
+    locationMode: text("location_mode"),
+    location: text("location"),
+    manager: text("manager"),
+    team: text("team"),
+    technologies: text("technologies").notNull().default("[]"), // JSON string[]
+    reasonForLeaving: text("reason_for_leaving"),
+    notes: text("notes"),
+    // When the job's facts were last folded into the career profile (null = never / edited since).
+    profileSyncedAt: timestamp("profile_synced_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().$defaultFn(now),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().$defaultFn(now),
+  },
+  (t) => [
+    index("jobs_user_idx").on(t.userId, t.id),
+    uniqueIndex("jobs_user_application_uq").on(t.userId, t.applicationId),
+  ],
+);
+
+// Compensation timeline for a job: starting pay, raises, promotions, bonus payouts, grants.
+export const jobCompensation = pgTable(
+  "job_compensation",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    jobId: integer("job_id")
+      .notNull()
+      .references(() => jobs.id, { onDelete: "cascade" }),
+    effectiveDate: date("effective_date", { mode: "string" }),
+    kind: text("kind").notNull().default("start"), // start | raise | promotion | adjustment | bonus_payout | equity_grant
+    title: text("title"), // new title, when a promotion changes it
+    baseAmount: integer("base_amount"),
+    currency: text("currency").notNull().default("USD"),
+    period: text("period").notNull().default("year"), // year | hour
+    bonus: text("bonus"),
+    equity: text("equity"),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().$defaultFn(now),
+  },
+  (t) => [index("job_compensation_user_job_idx").on(t.userId, t.jobId)],
+);
+
+// One row per job: the benefits package as held.
+export const jobBenefits = pgTable("job_benefits", {
+  jobId: integer("job_id")
+    .primaryKey()
+    .references(() => jobs.id, { onDelete: "cascade" }),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  health: text("health"),
+  retirement: text("retirement"),
+  ptoDays: integer("pto_days"),
+  parentalLeave: text("parental_leave"),
+  remotePolicy: text("remote_policy"),
+  other: text("other"),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().$defaultFn(now),
+});
+
+// Work journal: dated achievements, feedback, complaints and notes for a job. syncedAt marks
+// entries already folded into the career profile (null = pending a profile sync).
+export const journalEntries = pgTable(
+  "journal_entries",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    jobId: integer("job_id")
+      .notNull()
+      .references(() => jobs.id, { onDelete: "cascade" }),
+    entryDate: date("entry_date", { mode: "string" }),
+    kind: text("kind").notNull().default("achievement"), // achievement | feedback | complaint | note
+    title: text("title").notNull(),
+    body: text("body").notNull().default(""),
+    impact: text("impact"), // measurable result, e.g. "cut p95 latency 40%"
+    technologies: text("technologies").notNull().default("[]"), // JSON string[]
+    syncedAt: timestamp("synced_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().$defaultFn(now),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().$defaultFn(now),
+  },
+  (t) => [index("journal_entries_user_job_idx").on(t.userId, t.jobId)],
 );

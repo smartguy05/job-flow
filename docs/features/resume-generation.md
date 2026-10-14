@@ -21,6 +21,12 @@ Each user supplies their own inputs (managed on the **Career profile** page,
   default** `spec/resume-skill/SKILL.md`; the GET response reports `isDefault` and the
   `default` text.
 
+The profile can also be updated from [employment history](employment-history.md): **Sync from
+your jobs** (`POST /api/jobs/profile-sync`) proposes an edit from jobs, title changes,
+technologies and journal achievements/feedback — reviewed as a diff before saving — and
+**Import from career profile** goes the other way, backfilling jobs from the markdown.
+Complaints, notes, pay and benefits are never sent into the profile.
+
 `src/lib/career.ts` assembles these for the model:
 
 - `getCareerInfo(userId)` — career profile + each career file, concatenated.
@@ -127,5 +133,5 @@ Docker image and required for local dev. See [deployment](../operations/deployme
 
 ## Related
 
-- [Applications & tracking](applications-and-tracking.md) · [Data model](../architecture/data-model.md) ·
+- [Applications & tracking](applications-and-tracking.md) · [Employment history](employment-history.md) · [Data model](../architecture/data-model.md) ·
   [API reference](../api/reference.md) · [Configuration](../operations/configuration.md)
