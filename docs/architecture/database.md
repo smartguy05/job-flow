@@ -46,6 +46,7 @@ Recent additions: `0004_concerned_lord_hawal.sql` creates `interview_questions` 
 `interview_questions_user_app_idx`). `0005_cynical_george_stacy.sql` creates the
 employment-history tables `jobs`, `job_compensation`, `job_benefits` and `journal_entries`
 (unique `jobs_user_application_uq`; see [employment history](../features/employment-history.md)).
+`0006_gigantic_ricochet.sql` creates `inventions` (see [prior inventions](../features/prior-inventions.md)).
 
 ### Migration parity
 

@@ -7,6 +7,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import type { ResumeContent } from "./resume-content";
+import { convertDocxFileToPdf } from "./docx-pdf";
 
 const execFileP = promisify(execFile);
 
@@ -214,22 +215,12 @@ export async function renderResume(
   baseName: string,
 ): Promise<{ docx: Buffer; pdf: Buffer; pageCount: number; lastPageFill: number }> {
   const work = await fs.mkdtemp(path.join(os.tmpdir(), "resume-"));
-  // Private LO profile dir so concurrent conversions don't collide on the default lock.
-  const profileDir = await fs.mkdtemp(path.join(os.tmpdir(), "lo-"));
   try {
     const docxPath = path.join(work, `${baseName}.docx`);
     const docx = await Packer.toBuffer(buildDocx(content));
     await fs.writeFile(docxPath, docx);
 
-    await execFileP("soffice", [
-      "--headless",
-      `-env:UserInstallation=file://${profileDir}`,
-      "--convert-to", "pdf",
-      "--outdir", work,
-      docxPath,
-    ], { timeout: 60000 });
-
-    const pdfPath = path.join(work, `${baseName}.pdf`);
+    const pdfPath = await convertDocxFileToPdf(docxPath, work);
     const [pageCount, lastPageFill] = await Promise.all([
       getPdfPageCount(pdfPath),
       getPdfLastPageFill(pdfPath),
@@ -238,6 +229,5 @@ export async function renderResume(
     return { docx: Buffer.isBuffer(docx) ? docx : Buffer.from(docx), pdf, pageCount, lastPageFill };
   } finally {
     await fs.rm(work, { recursive: true, force: true });
-    await fs.rm(profileDir, { recursive: true, force: true });
   }
 }

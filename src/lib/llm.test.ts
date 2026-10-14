@@ -15,6 +15,9 @@ import {
   generateInterviewPrep,
   generateOfferComparison,
   extractJobsFromProfile,
+  draftInvention,
+  suggestInventions,
+  extractInventions,
 } from "./llm";
 import { makeResumeContent } from "@/test/fixtures";
 import type { ComparableApp } from "./offer-comparison";
@@ -308,5 +311,32 @@ describe("extractJobsFromProfile", () => {
     expect(call.json).toBe(true);
     expect(JSON.stringify(call.messages)).toContain("Acme 2020-");
     expect(call.system).toMatch(/do not invent/i);
+  });
+});
+
+describe("invention prompts", () => {
+  it("draftInvention parses one entry and forbids invention", async () => {
+    mockComplete.mockResolvedValue(JSON.stringify({ title: "Limiter", description: "Rate limiting library", kind: "software", technologies: ["Go"] }));
+    const r = await draftInvention({ userId: globalThis.__testUserId, text: "my go rate limiter" });
+    expect(r).toMatchObject({ title: "Limiter", kind: "software", technologies: ["Go"], inventionDate: null });
+    const call = mockComplete.mock.calls[0][0];
+    expect(call.system).toMatch(/do not invent/i);
+    expect(JSON.stringify(call.messages)).toContain("my go rate limiter");
+  });
+
+  it("suggestInventions passes history + existing titles and returns suggestions", async () => {
+    mockComplete.mockResolvedValue(JSON.stringify({ suggestions: [{ title: "CLI tool", source: "journal 2020", ownershipCaution: "Built while at Acme" }] }));
+    const r = await suggestInventions({ userId: globalThis.__testUserId, history: "HISTORY", existing: ["Limiter"] });
+    expect(r[0]).toMatchObject({ title: "CLI tool", ownershipCaution: "Built while at Acme" });
+    const msg = JSON.stringify(mockComplete.mock.calls[0][0].messages);
+    expect(msg).toContain("HISTORY");
+    expect(msg).toContain("Limiter");
+    expect(mockComplete.mock.calls[0][0].system).toMatch(/employ/i);
+  });
+
+  it("extractInventions parses a pasted exhibit", async () => {
+    mockComplete.mockResolvedValue(JSON.stringify({ inventions: [{ title: "A" }, { title: "B", inventionDate: "2018" }] }));
+    const r = await extractInventions({ userId: globalThis.__testUserId, text: "EXHIBIT A ..." });
+    expect(r.map((x) => x.title)).toEqual(["A", "B"]);
   });
 });

@@ -16,7 +16,7 @@ export const JD_UPLOAD_ACCEPT = ".txt,.md,.pdf,.doc,.docx,.odt,.rtf";
 
 export class UnsupportedFileTypeError extends Error {
   constructor(detail: string) {
-    super(`Unsupported job description file type (${detail}). Upload a PDF, Word, or text file.`);
+    super(`Unsupported file type (${detail}). Upload a PDF, Word, or text file.`);
     this.name = "UnsupportedFileTypeError";
   }
 }
@@ -58,10 +58,10 @@ export function tidyText(text: string): string {
     .trim();
 }
 
-// Extract plain text from an uploaded job-description file. Text files are decoded directly;
-// PDFs go through poppler `pdftotext`; Office documents through LibreOffice `soffice`. Throws
-// UnsupportedFileTypeError for anything we can't turn into text.
-export async function extractJobDescriptionText(
+// Extract plain text from an uploaded document (job description, Exhibit A, ...). Text files
+// are decoded directly; PDFs go through poppler `pdftotext`; Office documents through
+// LibreOffice `soffice`. Throws UnsupportedFileTypeError for anything we can't turn into text.
+export async function extractDocumentText(
   bytes: Buffer,
   opts: { name?: string; mimeType?: string } = {},
 ): Promise<string> {
@@ -74,6 +74,9 @@ export async function extractJobDescriptionText(
 
   throw new UnsupportedFileTypeError(mimeType || ext || "unknown");
 }
+
+// Original name, kept for the job-description upload route.
+export const extractJobDescriptionText = extractDocumentText;
 
 async function extractPdf(bytes: Buffer): Promise<string> {
   const work = await fs.mkdtemp(path.join(os.tmpdir(), "jd-pdf-"));

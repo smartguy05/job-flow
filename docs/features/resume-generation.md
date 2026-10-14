@@ -27,9 +27,12 @@ technologies and journal achievements/feedback — reviewed as a diff before sav
 **Import from career profile** goes the other way, backfilling jobs from the markdown.
 Complaints, notes, pay and benefits are never sent into the profile.
 
+Entries on the [Exhibit A](prior-inventions.md) page marked **Include in resume** are also
+part of the context (a "Personal projects & inventions" section); all other entries stay private.
+
 `src/lib/career.ts` assembles these for the model:
 
-- `getCareerInfo(userId)` — career profile + each career file, concatenated.
+- `getCareerInfo(userId)` — career profile + each career file + opted-in inventions, concatenated.
 - `getResumeSkill(userId)` — the user's skill, or the shipped default.
 - `defaultResumeSkill()` — reads `spec/resume-skill/SKILL.md`.
 
@@ -133,5 +136,5 @@ Docker image and required for local dev. See [deployment](../operations/deployme
 
 ## Related
 
-- [Applications & tracking](applications-and-tracking.md) · [Employment history](employment-history.md) · [Data model](../architecture/data-model.md) ·
+- [Applications & tracking](applications-and-tracking.md) · [Employment history](employment-history.md) · [Prior inventions](prior-inventions.md) · [Data model](../architecture/data-model.md) ·
   [API reference](../api/reference.md) · [Configuration](../operations/configuration.md)

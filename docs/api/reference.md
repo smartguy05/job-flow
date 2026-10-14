@@ -93,6 +93,20 @@ See [resume generation](../features/resume-generation.md).
 
 See [employment history](../features/employment-history.md).
 
+## Inventions (Exhibit A)
+
+| Method / Path | Purpose |
+|---|---|
+| `GET /api/inventions` | List entries in display order, with `technologies[]`. |
+| `POST /api/inventions` | Create one entry (object → `{ id }`) or many (array, max 200 → `{ ids }`), appended after the last. Fields: `title` (req), `description`, `inventionDate`, `identifier`, `kind` (`software`\|`invention`\|`authorship`\|`other`), `technologies` (array or comma string), `includeInResume` (boolean), `notes`, `sortOrder`. |
+| `PATCH/DELETE /api/inventions/[id]` | Edit (same fields) / delete. |
+| `POST /api/inventions/draft` | AI-draft one entry for review. Body: `{ text }` or `{ url }` (public github.com repo only; 400 with guidance otherwise). → `{ draft }`; nothing saved. |
+| `POST /api/inventions/suggest` | AI suggestions mined from profile, career files, jobs and journal (no complaints), excluding listed titles. → `{ suggestions: [...{ source, ownershipCaution }] }`. 400 if there is no history. |
+| `POST /api/inventions/import` | Parse an existing Exhibit A: `multipart/form-data` `file` (PDF/Word/text, ≤10MB) or JSON `{ text }`. → `{ inventions: [...{ duplicate }] }`; nothing saved. |
+| `GET /api/inventions/export` | `?fmt=text\|docx\|pdf` (default pdf), optional `ids=1,2`. Renders on demand; notes are never included. |
+
+See [prior inventions](../features/prior-inventions.md).
+
 ## Interviews
 
 | Method / Path | Purpose |

@@ -29,3 +29,10 @@ export function formatTenure(months: number | null): string {
   if (!y) return `${m} mo`;
   return m ? `${y} yr ${m} mo` : `${y} yr`;
 }
+
+export const INVENTION_KIND_LABELS: Record<string, string> = {
+  software: "Software",
+  invention: "Invention",
+  authorship: "Original work of authorship",
+  other: "Other",
+};

@@ -6,6 +6,13 @@ import { OfferComparisonVerdictSchema, type OfferComparisonVerdict } from "./off
 import { type ComparableApp } from "./offer-comparison";
 import { formatPay } from "./job-fields";
 import { ImportedJobsSchema, type ImportedJob } from "./job-import-content";
+import {
+  DraftedInventionSchema,
+  ExtractedInventionsSchema,
+  SuggestionsSchema,
+  type DraftedInvention,
+  type SuggestedInvention,
+} from "./invention-content";
 
 function parseJson<T>(text: string): T {
   const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/);
@@ -488,4 +495,72 @@ export async function extractJobsFromProfile(input: { userId: string; profile: s
     messages: [{ role: "user", content: `Career profile:\n"""\n${input.profile}\n"""` }],
   });
   return ImportedJobsSchema.parse(parseJson<unknown>(text)).jobs;
+}
+
+// --- Prior inventions ("Exhibit A") ---
+
+const INVENTION_FIELDS =
+  '"title", "description", "inventionDate" (free text like "2019" or "2019–2021", or null), ' +
+  '"identifier" (repo URL, patent/application number, or null), "kind" ("software" | "invention" | ' +
+  '"authorship" | "other"), "technologies" (string array)';
+
+const INVENTION_STYLE =
+  "Exhibit A entries list prior inventions and original works of authorship that a person owns before joining " +
+  "an employer. Write a short title and a brief, general one-to-two sentence description that identifies the " +
+  "work without disclosing confidential implementation detail. Use only facts given — do not invent dates, " +
+  "identifiers, features or technologies; use null when unknown.";
+
+// Draft one entry from the user's own description, or from repo metadata + README.
+export async function draftInvention(input: { userId: string; text: string }): Promise<DraftedInvention> {
+  const text = await complete({
+    userId: input.userId,
+    maxTokens: 2000,
+    json: true,
+    system: `${INVENTION_STYLE} Return ONE JSON object with keys ${INVENTION_FIELDS}.`,
+    messages: [{ role: "user", content: `Source material:\n"""\n${input.text}\n"""` }],
+  });
+  return DraftedInventionSchema.parse(parseJson<unknown>(text));
+}
+
+// Mine the user's history for prior work that may belong on their Exhibit A.
+export async function suggestInventions(input: {
+  userId: string;
+  history: string;
+  existing: string[];
+}): Promise<SuggestedInvention[]> {
+  const text = await complete({
+    userId: input.userId,
+    maxTokens: 6000,
+    json: true,
+    system:
+      `${INVENTION_STYLE} From the user's career history, suggest candidate prior inventions, side projects, open-source ` +
+      "work or original works of authorship that are not already listed. For each, set \"source\" to where in the " +
+      "history it came from. If it appears to have been created while employed, during work hours, or with an " +
+      "employer's resources, set \"ownershipCaution\" explaining why (it may belong to that employer); otherwise null. " +
+      `Never decide ownership. Return JSON {"suggestions":[{${INVENTION_FIELDS}, "source", "ownershipCaution"}]}.`,
+    messages: [
+      {
+        role: "user",
+        content:
+          `Already listed (skip these):\n${input.existing.map((t) => `- ${t}`).join("\n") || "(none)"}\n\n` +
+          `Career history:\n"""\n${input.history}\n"""`,
+      },
+    ],
+  });
+  return SuggestionsSchema.parse(parseJson<unknown>(text)).suggestions;
+}
+
+// Parse an existing Exhibit A document (pasted or extracted text) into entries.
+export async function extractInventions(input: { userId: string; text: string }): Promise<DraftedInvention[]> {
+  const text = await complete({
+    userId: input.userId,
+    maxTokens: 8000,
+    json: true,
+    system:
+      "You parse an Exhibit A (list of prior inventions and original works of authorship) into structured entries, " +
+      "one per listed item, keeping the document's own wording. Do not invent anything; use null when a field is " +
+      `absent. Return JSON {"inventions":[{${INVENTION_FIELDS}}]}.`,
+    messages: [{ role: "user", content: `Document:\n"""\n${input.text}\n"""` }],
+  });
+  return ExtractedInventionsSchema.parse(parseJson<unknown>(text)).inventions;
 }
