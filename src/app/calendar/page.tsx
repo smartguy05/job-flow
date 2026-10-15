@@ -10,6 +10,7 @@ import {
   eventsByDay,
   eventColor,
   EVENT_TYPE_LABELS,
+  eventHref,
   type CalendarEvent,
   type CalendarEventType,
 } from "@/lib/calendar";
@@ -182,7 +183,7 @@ function EventRow({ ev, showDate }: { ev: CalendarEvent; showDate?: boolean }) {
   const c = eventColor(ev);
   return (
     <Link
-      href={`/applications/${ev.applicationId}`}
+      href={eventHref(ev)}
       className="card p-3 flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-3 hover:opacity-90"
     >
       <span className="badge whitespace-nowrap self-start" style={{ background: c.bg, color: c.fg }}>
@@ -202,6 +203,7 @@ function Legend() {
     { type: "interview", label: "Interview" },
     { type: "deadline", label: "Deadline" },
     { type: "next_action", label: "Next action" },
+    { type: "review", label: "Review" },
   ];
   return (
     <div className="flex flex-wrap gap-3 text-sm" style={{ color: "var(--muted)" }}>

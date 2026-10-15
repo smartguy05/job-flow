@@ -5,10 +5,17 @@ import { getSettings } from "@/lib/settings";
 import { sendNtfy } from "@/lib/ntfy";
 import { expireStaleApplications } from "@/lib/expiry";
 import { getUser, unauthorized } from "@/lib/auth";
-import { candidatesForUser, OPEN_STATUSES } from "@/lib/services/attention";
+import {
+  candidatesForUser,
+  markReviewReminded,
+  OPEN_STATUSES,
+  reviewCandidatesForUser,
+  usersWithUpcomingReviews,
+} from "@/lib/services/attention";
 
 // Called by the container's cron. System-triggered (no user session): iterate every user
-// with open applications and push per-user ntfy nudges using their own settings.
+// with open applications or an upcoming performance review and push per-user ntfy nudges
+// using their own settings.
 export async function POST(req: NextRequest) {
   const secret = process.env.CRON_SECRET;
   if (secret && req.headers.get("x-cron-secret") !== secret) {
@@ -19,12 +26,13 @@ export async function POST(req: NextRequest) {
     .select({ userId: schema.applications.userId })
     .from(schema.applications)
     .where(inArray(schema.applications.status, OPEN_STATUSES));
-  const userIds = [...new Set(openApps.map((a) => a.userId))];
+  const userIds = [...new Set([...openApps.map((a) => a.userId), ...(await usersWithUpcomingReviews())])];
 
   const baseUrl = process.env.APP_BASE_URL || "";
   let candidateCount = 0;
   let sent = 0;
   let expired = 0;
+  let reviewReminders = 0;
 
   for (const userId of userIds) {
     const s = await getSettings(userId);
@@ -57,9 +65,22 @@ export async function POST(req: NextRequest) {
       });
       if (ok) sent++;
     }
+
+    // One nudge per upcoming review date: prep the brag doc and self-review in time.
+    for (const r of await reviewCandidatesForUser(userId)) {
+      const ok = await sendNtfy(userId, {
+        title: `Review coming up: ${r.company}`,
+        message: `${r.title} — performance review on ${r.nextReviewDate} (${r.daysUntil} days). Time to update your brag doc.`,
+        tags: ["memo"],
+        click: baseUrl ? `${baseUrl}/jobs/${r.jobId}` : undefined,
+      });
+      await markReviewReminded(userId, r.jobId, r.nextReviewDate);
+      reviewReminders++;
+      if (ok) sent++;
+    }
   }
 
-  return NextResponse.json({ candidates: candidateCount, notificationsSent: sent, expired });
+  return NextResponse.json({ candidates: candidateCount, notificationsSent: sent, expired, reviewReminders });
 }
 
 // In-app "needs attention" view for the signed-in user. This route is exempt from the

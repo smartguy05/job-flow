@@ -92,9 +92,9 @@ See [resume generation](../features/resume-generation.md).
 |---|---|
 | `GET /api/jobs` | List jobs (current first) with `technologies[]` and `tenureMonths`. |
 | `POST /api/jobs` | Create. Body: `company`, `title` (req), `startDate?`/`endDate?` (`YYYY-MM-DD`), `team?`, `manager?`, `employmentType?`, `locationMode?`, `location?`, `technologies?` (array or comma string), `reasonForLeaving?`, `notes?`. → `{ id }`. |
-| `GET /api/jobs/[id]` | `{ job, compensation, compSummary, benefits, entries, technologies }`. |
-| `PATCH /api/jobs/[id]` | Partial update (same fields); clears `profileSyncedAt`. |
-| `DELETE /api/jobs/[id]` | Delete (comp, benefits, journal cascade). |
+| `GET /api/jobs/[id]` | `{ job, compensation, compSummary, benefits, entries, technologies, currentManager, managerHistory }`. `currentManager` is derived from dated `manager` people, falling back to `job.manager`. |
+| `PATCH /api/jobs/[id]` | Partial update (same fields, plus `nextReviewDate`); clears `profileSyncedAt` unless only `nextReviewDate` changed. |
+| `DELETE /api/jobs/[id]` | Delete (comp, benefits, journal, people, 1:1s, reviews and goals cascade). |
 | `GET/POST /api/jobs/[id]/compensation` | List / add a comp row. Body: `kind`, `effectiveDate`, `baseAmount`, `currency`, `period` (`year`\|`hour`), `title`, `bonus`, `equity`, `notes`. |
 | `PATCH/DELETE /api/jobs/[id]/compensation/[compId]` | Edit / remove a comp row. |
 | `PUT /api/jobs/[id]/benefits` | Upsert benefits: `health`, `retirement`, `ptoDays`, `parentalLeave`, `remotePolicy`, `other`. |
@@ -106,6 +106,26 @@ See [resume generation](../features/resume-generation.md).
 | `POST /api/jobs/import/confirm` | Body: `{ jobs?, applicationIds? }`. Profile jobs → jobs + achievement entries (already synced), skipping exact duplicates; application ids → jobs filled from the application, starting on the won date (others' / non-won / already-linked ids skipped). → `{ created, skipped }`. |
 
 See [employment history](../features/employment-history.md).
+
+## Career growth
+
+All routes are scoped to the user **and** the job in the path. Another user's job, or a row
+from a different job, gives 404. Rows are edited at `[subId]` with `PATCH` (partial) and
+removed with `DELETE`, and both return `{ ok: true }`. Creates return `{ id }`. See
+[career growth](../features/career-growth.md).
+
+| Method / Path | Purpose |
+|---|---|
+| `GET/POST /api/jobs/[id]/people` | List (managers first) or add a person. Body: `name` (required), `relationship` (`manager`\|`skip`\|`peer`\|`report`\|`mentor`\|`stakeholder`), `title?`, `email?`, `startDate?`, `endDate?`, `notes?`. |
+| `PATCH/DELETE /api/jobs/[id]/people/[subId]` | Edit or remove a person. |
+| `GET/POST /api/jobs/[id]/one-on-ones` | List (newest first, `actionItems` parsed) or log a 1:1. Body: `date?` (default today), `personId?` (must be on this job, else 400), `notes?`, `actionItems?` (array of strings or `{ text, done }`). |
+| `PATCH/DELETE /api/jobs/[id]/one-on-ones/[subId]` | Edit or remove a 1:1. |
+| `GET/POST /api/jobs/[id]/reviews` | List (latest period first) or add a review. Body: `cycle` (required), `periodStart?`, `periodEnd?`, `rating?`, `reviewer?`, `summary?`, `strengths?`, `growthAreas?`, `outcome?`, `compensationId?` (a comp row of this job, else 400). |
+| `PATCH/DELETE /api/jobs/[id]/reviews/[subId]` | Edit or remove a review. |
+| `GET/POST /api/jobs/[id]/goals` | List (active first, `keyResults` parsed) or add a goal. Body: `title` (required), `description?`, `period?`, `status?` (`active`\|`done`\|`dropped`; `done` implies progress 100), `progress?` (0–100), `keyResults?`. |
+| `PATCH/DELETE /api/jobs/[id]/goals/[subId]` | Edit or remove a goal. |
+| `GET /api/jobs/[id]/brag-doc` | `?from&to` (inclusive `YYYY-MM-DD`), `?fmt=md` (default, `text/markdown`) \| `json` (`{ doc, markdown }`) \| `docx` (attachment). It contains achievements, feedback, review highlights, goals and technologies, and never complaints, notes, 1:1s, pay or review outcomes. A bad `fmt` or date gives 400. |
+| `POST /api/jobs/[id]/self-review` | Body `{ from?, to?, cycle? }`. An AI self-review drafted from the brag doc only. Returns `{ draft, bragDoc }`; nothing is saved. Returns 400 when the brag doc is empty and 500 when the model fails. |
 
 ## Inventions (Exhibit A)
 
@@ -210,7 +230,7 @@ See [configuration](../operations/configuration.md).
 
 | Method / Path | Auth | Purpose |
 |---|---|---|
-| `POST /api/cron/reminders` | `x-cron-secret` (if set) | Sweep all users: expire stale applications, then push follow-up reminders. Middleware-exempt. |
+| `POST /api/cron/reminders` | `x-cron-secret` (if set) | Sweep all users: expire stale applications, push follow-up reminders, and nudge once about each performance review due within 14 days. Middleware-exempt. → `{ candidates, notificationsSent, expired, reviewReminders }`. |
 | `GET /api/cron/reminders` | user | In-app "needs attention" preview for the current user. |
 
 See [reminders & analytics](../features/reminders-and-analytics.md).
@@ -219,4 +239,5 @@ See [reminders & analytics](../features/reminders-and-analytics.md).
 
 - [Sessions & middleware](../auth/sessions-and-middleware.md) · [Data model](../architecture/data-model.md) ·
   [Applications & tracking](../features/applications-and-tracking.md) · [Interview questions](../features/interview-questions.md) · [Resume generation](../features/resume-generation.md) ·
-  [Service layer](../architecture/service-layer.md) · [MCP server](../features/mcp.md) · [Email ingestion](../features/email-ingestion.md)
+  [Service layer](../architecture/service-layer.md) · [MCP server](../features/mcp.md) · [Email ingestion](../features/email-ingestion.md) ·
+  [Career growth](../features/career-growth.md)

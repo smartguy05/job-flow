@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { db, schema } from "@/db";
 import { insertApp, seedUser } from "@/test/req";
-import { candidatesForUser } from "./attention";
+import { candidatesForUser, reviewCandidatesForUser } from "./attention";
 
 const uid = () => globalThis.__testUserId;
 const daysAgo = (n: number) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
@@ -32,5 +32,32 @@ describe("candidatesForUser", () => {
     const other = await seedUser("attention-svc-other");
     await insertApp({ lastActivityAt: daysAgo(10) });
     expect(await candidatesForUser(other.id, 7)).toEqual([]);
+  });
+});
+
+describe("reviewCandidatesForUser", () => {
+  const iso = (days: number) => new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  async function job(userId: string, over: Partial<typeof schema.jobs.$inferInsert>) {
+    const [j] = await db
+      .insert(schema.jobs)
+      .values({ userId, company: "Rev Co", companyNormalized: "rev", title: "Engineer", ...over })
+      .returning();
+    return j.id;
+  }
+
+  it("returns current jobs whose review is within the window and not yet reminded", async () => {
+    await db.delete(schema.jobs);
+    const soon = await job(uid(), { nextReviewDate: iso(5) });
+    await job(uid(), { nextReviewDate: iso(40) }); // too far out
+    await job(uid(), { nextReviewDate: iso(-2) }); // already past
+    await job(uid(), { nextReviewDate: iso(3), endDate: "2020-01-01" }); // ended job
+    await job(uid(), { nextReviewDate: iso(4), reviewRemindedFor: iso(4) }); // already nudged
+    const nudgedOldDate = await job(uid(), { nextReviewDate: iso(6), reviewRemindedFor: iso(-180) }); // new review date
+    const other = await seedUser("review-cand-other");
+    await job(other.id, { nextReviewDate: iso(2) });
+
+    const c = await reviewCandidatesForUser(uid(), 14);
+    expect(c.map((x) => x.jobId).sort()).toEqual([soon, nudgedOldDate].sort());
+    expect(c.find((x) => x.jobId === soon)).toMatchObject({ company: "Rev Co", nextReviewDate: iso(5), daysUntil: 5 });
   });
 });

@@ -18,11 +18,12 @@ documents how the system is built and operated. Start here and follow the links.
 
 ### Features
 - [Applications & tracking](features/applications-and-tracking.md) — capture, dedup, CRUD, dashboard filtering (hides expired/closed by default), interviews, post-interview debrief (optional Whisper transcription), drafts, timeline.
-- [Calendar](features/calendar.md) — month grid + agenda of interviews, deadlines, and next-actions across all applications, plus a subscribable `.ics` feed.
+- [Calendar](features/calendar.md) — month grid + agenda of interviews, deadlines, next-actions and upcoming performance reviews, plus a subscribable `.ics` feed.
 - [Resume generation](features/resume-generation.md) — career profile/files/skill, render pipeline, 2-page fit, downloads.
 - [Interview prep](features/interview-prep.md) — AI prep pack per interview round (questions + answers, questions to ask, study checklist), regenerable and editable.
 - [Interview questions](features/interview-questions.md) — checklist of questions to ask interviewers: general (all jobs) + job-specific, per-job checks and answer notes, import from prep pack.
 - [Employment history](features/employment-history.md) — jobs you hold: comp timeline, benefits, work journal (achievements, technologies, complaints), AI profile sync with approval, backfill import; auto-created on `closed_won`.
+- [Career growth](features/career-growth.md) — post-hire: people & manager history, private 1:1s with action items, performance reviews, goals/OKRs, next review date (calendar + reminder), brag doc (Markdown/DOCX) and AI self-review draft, with the privacy rule enforced by tests.
 - [Prior inventions (Exhibit A)](features/prior-inventions.md) — structured list of prior inventions/works of authorship; AI drafting (describe, GitHub repo, suggest from history, import), DOCX/PDF/text export, per-entry opt-in to resumes.
 - [Offer comparison](features/offer-comparison.md) — side-by-side table + AI verdict across competing offers, with benefits-PDF upload.
 - [Reminders & analytics](features/reminders-and-analytics.md) — per-user reminder sweep, ntfy, outcome analytics (funnel, time to response, response rate by variant).

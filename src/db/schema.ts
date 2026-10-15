@@ -376,6 +376,10 @@ export const jobs = pgTable(
     technologies: text("technologies").notNull().default("[]"), // JSON string[]
     reasonForLeaving: text("reason_for_leaving"),
     notes: text("notes"),
+    // Next performance review (feeds the calendar as a `review` event and the reminder sweep).
+    nextReviewDate: date("next_review_date", { mode: "string" }),
+    // The nextReviewDate a reminder was last sent for, so each review is nudged once.
+    reviewRemindedFor: date("review_reminded_for", { mode: "string" }),
     // When the job's facts were last folded into the career profile (null = never / edited since).
     profileSyncedAt: timestamp("profile_synced_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().$defaultFn(now),
@@ -452,6 +456,106 @@ export const journalEntries = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().$defaultFn(now),
   },
   (t) => [index("journal_entries_user_job_idx").on(t.userId, t.jobId)],
+);
+
+// --- Career growth (post-hire): people, 1:1s, performance reviews, goals ---
+
+// People around a job: managers (history = manager rows with their date ranges), skips,
+// peers, reports, mentors, stakeholders. `notes` is private and never sent to the LLM.
+export const jobPeople = pgTable(
+  "job_people",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    jobId: integer("job_id")
+      .notNull()
+      .references(() => jobs.id, { onDelete: "cascade" }),
+    name: text("name").notNull(),
+    relationship: text("relationship").notNull().default("peer"), // manager | skip | peer | report | mentor | stakeholder
+    title: text("title"),
+    email: text("email"),
+    startDate: date("start_date", { mode: "string" }),
+    endDate: date("end_date", { mode: "string" }),
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().$defaultFn(now),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().$defaultFn(now),
+  },
+  (t) => [index("job_people_user_job_idx").on(t.userId, t.jobId)],
+);
+
+// 1:1 meetings for a job, optionally with one person. Notes are private (never sent to the
+// LLM); actionItems is a JSON `{ text, done }[]`.
+export const oneOnOnes = pgTable(
+  "one_on_ones",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    jobId: integer("job_id")
+      .notNull()
+      .references(() => jobs.id, { onDelete: "cascade" }),
+    personId: integer("person_id").references(() => jobPeople.id, { onDelete: "set null" }),
+    date: date("date", { mode: "string" }),
+    notes: text("notes").notNull().default(""),
+    actionItems: text("action_items").notNull().default("[]"), // JSON { text, done }[]
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().$defaultFn(now),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().$defaultFn(now),
+  },
+  (t) => [index("one_on_ones_user_job_idx").on(t.userId, t.jobId)],
+);
+
+// Performance reviews received. compensationId optionally links the raise/promotion row
+// that came out of the cycle (`outcome` and that link are private).
+export const performanceReviews = pgTable(
+  "performance_reviews",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    jobId: integer("job_id")
+      .notNull()
+      .references(() => jobs.id, { onDelete: "cascade" }),
+    cycle: text("cycle").notNull(), // e.g. "2026 mid-year"
+    periodStart: date("period_start", { mode: "string" }),
+    periodEnd: date("period_end", { mode: "string" }),
+    rating: text("rating"),
+    reviewer: text("reviewer"),
+    summary: text("summary"),
+    strengths: text("strengths"),
+    growthAreas: text("growth_areas"),
+    outcome: text("outcome"),
+    compensationId: integer("compensation_id").references(() => jobCompensation.id, { onDelete: "set null" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().$defaultFn(now),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().$defaultFn(now),
+  },
+  (t) => [index("performance_reviews_user_job_idx").on(t.userId, t.jobId)],
+);
+
+// Goals / OKRs for a job. keyResults is a JSON `{ text, done }[]`.
+export const goals = pgTable(
+  "goals",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    jobId: integer("job_id")
+      .notNull()
+      .references(() => jobs.id, { onDelete: "cascade" }),
+    title: text("title").notNull(),
+    description: text("description"),
+    period: text("period"), // e.g. "2026-H2"
+    status: text("status").notNull().default("active"), // active | done | dropped
+    progress: integer("progress").notNull().default(0), // 0–100
+    keyResults: text("key_results").notNull().default("[]"), // JSON { text, done }[]
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().$defaultFn(now),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().$defaultFn(now),
+  },
+  (t) => [index("goals_user_job_idx").on(t.userId, t.jobId)],
 );
 
 // Prior inventions / original works of authorship — the "Exhibit A" a user attaches to an

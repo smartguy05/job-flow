@@ -63,6 +63,10 @@ file bytes are never returned.
 | `list_journal` | `{ jobId?, kind?, from?, to? }`. Spans all jobs when `jobId` is omitted. |
 | `ingest_email` | `{ messageId, from, subject, date?, body, apply? }`. Classify one email, rank matching applications and propose actions; applies only with `apply` and a single confident match. Idempotent per message. See [email ingestion](email-ingestion.md). |
 | `get_analytics` | No input. The same outcome analytics as `GET /api/analytics` (funnel by source, time to first response, response rate by resume variant/seniority/location/interest, `smallSample` flags). See [reminders & analytics](reminders-and-analytics.md#outcome-analytics-get-apianalytics). |
+| `log_one_on_one` | `{ jobId, date?, personId?, notes?, actionItems? }`. Log a private 1:1. See [career growth](career-growth.md). |
+| `add_review` | `{ jobId, cycle, periodStart?, periodEnd?, rating?, reviewer?, summary?, strengths?, growthAreas?, outcome? }`. Record a performance review. |
+| `update_goal` | `{ jobId, goalId?, title?, description?, period?, status?, progress?, keyResults? }`. With `goalId`, updates that goal. Without it, creates a goal and needs `title`. |
+| `get_brag_doc` | `{ jobId, from?, to? }`. The brag doc as `{ doc, markdown }`, never including complaints, notes, 1:1s or pay. |
 | `apply_email_actions` | `{ messageId, applicationId, actions }`. Apply user-approved actions (`set_status`, `add_interview`, `set_next_action`, `log_event`) from an ingested email, once. |
 
 ## Prompts
@@ -148,6 +152,8 @@ stubs `fetch` for Authentik discovery and JWKS, so no real IdP is called.
 See [testing](../operations/testing.md).
 
 ## Related
+
+- [Career growth](career-growth.md) (1:1s, reviews, goals, brag doc tools)
 
 - [Authentik setup](../auth/authentik-setup.md) · [OIDC flow](../auth/oidc-flow.md) ·
   [Sessions & middleware](../auth/sessions-and-middleware.md)

@@ -98,4 +98,25 @@ describe("POST /api/cron/reminders", () => {
     const [app] = await db.select().from(schema.applications).where(eq(schema.applications.id, id)).limit(1);
     expect(app.status).toBe("expired");
   });
+
+  it("nudges once about an upcoming performance review, even with no open applications", async () => {
+    await db.delete(schema.jobs);
+    const reviewDate = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const [job] = await db
+      .insert(schema.jobs)
+      .values({ userId: globalThis.__testUserId, company: "Rev Co", companyNormalized: "rev", title: "Engineer", nextReviewDate: reviewDate })
+      .returning();
+    const body = await (await POST(req("/api/cron/reminders", "POST"))).json();
+    expect(body.reviewReminders).toBe(1);
+    expect(body.candidates).toBe(0);
+    expect(mockNtfy).toHaveBeenCalledOnce();
+    expect(mockNtfy.mock.calls[0][1].title).toContain("Rev Co");
+    const [after] = await db.select().from(schema.jobs).where(eq(schema.jobs.id, job.id));
+    expect(after.reviewRemindedFor).toBe(reviewDate);
+
+    mockNtfy.mockClear();
+    const again = await (await POST(req("/api/cron/reminders", "POST"))).json();
+    expect(again.reviewReminders).toBe(0);
+    expect(mockNtfy).not.toHaveBeenCalled();
+  });
 });

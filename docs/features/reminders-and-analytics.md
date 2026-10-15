@@ -34,6 +34,22 @@ each owner's own settings:
    `lastActivityAt` — a system nudge is not user activity, so it must not reset the
    inactivity clock that drives expiry (below).
 
+### Performance review reminders
+
+The same sweep also covers users with a **current** job (no `endDate`) whose
+`nextReviewDate` falls between today and 14 days from now (`REVIEW_REMINDER_DAYS`). Those
+users are included even if they have no open applications.
+
+- `reviewCandidatesForUser(userId)` returns the jobs whose `reviewRemindedFor` differs from
+  their `nextReviewDate`.
+- Each gets one ntfy push ("Review coming up: …", linking to `/jobs/[id]`), and
+  `markReviewReminded` then stores the date in `reviewRemindedFor`.
+- Each review date is therefore nudged once, and moving the review date re-arms the reminder.
+- The POST response adds `reviewReminders`, the number of nudges sent. The GET preview is
+  unchanged.
+
+See [career growth](career-growth.md).
+
 Quiet-window and ntfy settings are per-user (see [configuration](../operations/configuration.md)
 for how settings vs. secrets are split).
 
@@ -103,6 +119,7 @@ hovering a row shows the exact counts.
 
 ## Related
 
+- [Career growth](career-growth.md) (review dates and the brag doc)
 - [Applications & tracking](applications-and-tracking.md) · [API reference](../api/reference.md) ·
   [Configuration](../operations/configuration.md) · [Deployment](../operations/deployment.md) ·
   [Service layer](../architecture/service-layer.md) · [MCP server](mcp.md) ·

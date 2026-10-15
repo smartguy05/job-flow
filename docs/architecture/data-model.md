@@ -36,9 +36,13 @@ from, and the [API reference](../api/reference.md) for per-route behavior.
 | `career_profile` | `userId` PK | One master career-info markdown per user. |
 | `career_files` | `id` identity | Supplementary source docs (many per user). |
 | `resume_skill` | `userId` PK | Editable generation instructions (falls back to default). |
-| `jobs` | `id` identity | Positions held. `application_id` (nullable, `ON DELETE SET NULL`) links a job auto-created from a `closed_won` application; unique `(user_id, application_id)` makes that idempotent. `start_date`/`end_date` are `date` (null end = current); `technologies` is a JSON `string[]`; `profile_synced_at` (null = not yet folded into the career profile). See [employment history](../features/employment-history.md). |
+| `jobs` | `id` identity | Positions held. `application_id` (nullable, `ON DELETE SET NULL`) links a job auto-created from a `closed_won` application; unique `(user_id, application_id)` makes that idempotent. `start_date`/`end_date` are `date` (null end = current); `technologies` is a JSON `string[]`; `profile_synced_at` (null = not yet folded into the career profile); `next_review_date` (nullable `date`, feeds the calendar `review` event and the reminder sweep) and `review_reminded_for` (the review date last nudged, so each review is reminded once). See [employment history](../features/employment-history.md). |
 | `job_compensation` | `id` identity | Comp timeline per job (`ON DELETE CASCADE`): `kind` (`start`\|`raise`\|`promotion`\|`adjustment`\|`bonus_payout`\|`equity_grant`), `effective_date`, `base_amount`, `currency`, `period`, `title`, `bonus`, `equity`, `notes`. |
 | `job_benefits` | `job_id` PK | One benefits row per job: `health`, `retirement`, `pto_days`, `parental_leave`, `remote_policy`, `other`. |
+| `job_people` | `id` identity | People around a job (`ON DELETE CASCADE` from `jobs`): `name`, `relationship` (`manager`\|`skip`\|`peer`\|`report`\|`mentor`\|`stakeholder`, default `peer`), `title`, `email`, `start_date`/`end_date`, private `notes`. Manager history = `manager` rows by date. Index `(user_id, job_id)`. See [career growth](../features/career-growth.md). |
+| `one_on_ones` | `id` identity | 1:1s per job: `person_id` (nullable → `job_people`, `ON DELETE SET NULL`), `date`, private `notes`, `action_items` (JSON `{ text, done }[]`). Index `(user_id, job_id)`. |
+| `performance_reviews` | `id` identity | Reviews per job: `cycle`, `period_start`/`period_end`, `rating`, `reviewer`, `summary`, `strengths`, `growth_areas`, private `outcome`, `compensation_id` (nullable → `job_compensation`, `ON DELETE SET NULL`). Index `(user_id, job_id)`. |
+| `goals` | `id` identity | Goals per job: `title`, `description`, `period` (e.g. `2026-H2`), `status` (`active`\|`done`\|`dropped`), `progress` (0–100), `key_results` (JSON `{ text, done }[]`). Index `(user_id, job_id)`. |
 | `inventions` | `id` identity | Prior inventions / original works of authorship ("Exhibit A"): `title`, `description` (NOT NULL, default `''`), free-text `invention_date`, `identifier`, `kind` (`software`\|`invention`\|`authorship`\|`other`), `technologies` (JSON `string[]`), `include_in_resume` (boolean, default false), private `notes`, `sort_order`. Index `(user_id, sort_order)`. See [prior inventions](../features/prior-inventions.md). |
 | `ingested_emails` | `id` identity | Emails handed over through the MCP `ingest_email` tool (see [email ingestion](../features/email-ingestion.md)). `message_id` (provider id), `kind` (`rejection`\|`interview_invite`\|`recruiter_reply`\|`offer`\|`application_ack`\|`other`), `summary`, `from_address`, `subject`, `received_at`, `processed_at`, `applied_at` (null = proposed only), `actions` (JSON of the applied actions), `application_id` (nullable, `ON DELETE SET NULL`). Unique `(user_id, message_id)` makes ingest idempotent; `applied_at` is claimed atomically so a message is applied once. The body is never stored. Index `(user_id, processed_at)`. |
 | `journal_entries` | `id` identity | Work journal per job (`ON DELETE CASCADE`): `kind` (`achievement`\|`feedback`\|`complaint`\|`note`), `entry_date`, `title`, `body`, `impact`, `technologies` (JSON `string[]`), `synced_at` (null = pending profile sync). |
@@ -58,7 +62,10 @@ JS-side default (`$defaultFn(() => new Date())`).
   `interview_questions`.
 - `jobs.applicationId → applications.id` (nullable, `ON DELETE SET NULL`) — deleting the
   application keeps the job. `job_compensation` / `job_benefits` / `journal_entries . jobId →
-  jobs.id` (`ON DELETE CASCADE`).
+  jobs.id` (`ON DELETE CASCADE`), as do `job_people` / `one_on_ones` / `performance_reviews` /
+  `goals`. `one_on_ones.personId → job_people.id` and `performance_reviews.compensationId →
+  job_compensation.id` are `ON DELETE SET NULL`; the service layer only accepts ids from the
+  same user **and** job.
 - `ingested_emails.applicationId → applications.id` (nullable, `ON DELETE SET NULL`), so the
   record of a processed message (and its idempotency key) survives deleting the application.
 - `offer_comparisons` carries only `userId → users.id` (`ON DELETE CASCADE`); it references
@@ -95,5 +102,5 @@ affected feature/API docs in the same change.
 
 ## Related
 
-- [Database layer](database.md) · [Reminders & analytics](../features/reminders-and-analytics.md) · [Email ingestion](../features/email-ingestion.md) · [OIDC flow](../auth/oidc-flow.md) ·
+- [Database layer](database.md) · [Career growth](../features/career-growth.md) · [Reminders & analytics](../features/reminders-and-analytics.md) · [Email ingestion](../features/email-ingestion.md) · [OIDC flow](../auth/oidc-flow.md) ·
   [Resume generation](../features/resume-generation.md) · [API reference](../api/reference.md)

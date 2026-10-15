@@ -52,6 +52,9 @@ employment-history tables `jobs`, `job_compensation`, `job_benefits` and `journa
 [email ingestion](../features/email-ingestion.md)).
 `0008_nervous_sheva_callister.sql` adds the nullable `resumes.variant_label` (see
 [outcome analytics](../features/reminders-and-analytics.md#outcome-analytics-get-apianalytics)).
+`0009_happy_black_knight.sql` creates `job_people`, `one_on_ones`, `performance_reviews` and
+`goals`, and adds `jobs.next_review_date` / `jobs.review_reminded_for` (see
+[career growth](../features/career-growth.md)).
 
 ### Migration parity
 

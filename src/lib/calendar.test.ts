@@ -10,6 +10,8 @@ import {
   foldICSLine,
   eventUID,
   toICS,
+  eventHref,
+  EVENT_TYPE_LABELS,
   type CalendarEvent,
 } from "./calendar";
 
@@ -223,5 +225,27 @@ describe("toICS", () => {
   it("links each event back to its application", () => {
     const ics = toICS([ev({ sourceId: 1, applicationId: 55 })], opts);
     expect(ics).toContain("https://jobflow.test/applications/55");
+  });
+});
+
+describe("review events", () => {
+  const review = (over: Partial<CalendarEvent> = {}) =>
+    ev({ type: "review", applicationId: undefined, jobId: 12, sourceId: 12, title: "Performance review", status: "current", date: "2026-11-02T12:00:00.000Z", ...over });
+
+  it("has a label, its own color, and links to the job", () => {
+    expect(EVENT_TYPE_LABELS.review).toBe("Review");
+    const c = eventColor(review());
+    expect(c).not.toEqual(eventColor(ev({ type: "deadline" })));
+    expect(c).not.toEqual(eventColor(ev({ type: "next_action" })));
+    expect(eventHref(review())).toBe("/jobs/12");
+    expect(eventHref(ev({ applicationId: 4 }))).toBe("/applications/4");
+  });
+
+  it("serializes as an all-day VEVENT with a job UID and URL", () => {
+    const ics = toICS([review()], { dtstamp: "2026-07-06T12:00:00.000Z", baseUrl: "https://jobflow.test" });
+    expect(ics).toContain("UID:review-12@jobflow");
+    expect(ics).toContain("DTSTART;VALUE=DATE:20261102");
+    expect(ics).toContain("SUMMARY:Review: Globex — Performance review");
+    expect(ics).toContain("https://jobflow.test/jobs/12");
   });
 });

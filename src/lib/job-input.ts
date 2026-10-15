@@ -78,7 +78,7 @@ export function jobInput(body: Body, opts: { create?: boolean } = {}): Parsed {
     {
       required: ["company", "title"],
       text: ["employmentType", "locationMode", "location", "manager", "team", "reasonForLeaving", "notes"],
-      dates: ["startDate", "endDate"],
+      dates: ["startDate", "endDate", "nextReviewDate"],
       tech: true,
     },
     !!opts.create,

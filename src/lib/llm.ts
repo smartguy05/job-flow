@@ -605,3 +605,29 @@ export async function classifyEmail(input: {
   });
   return EmailClassificationSchema.parse(parseJson<unknown>(text));
 }
+
+// --- Career growth ---
+
+// Turn a brag doc into a first-person self-review draft. The brag doc is the ONLY input
+// (built by src/lib/brag-doc.ts, which already excludes complaints, notes, 1:1s, pay,
+// equity and PTO), and the model must not add anything it does not state.
+export async function draftSelfReview(input: { userId: string; bragDoc: string; cycle?: string }): Promise<string> {
+  const text = await complete({
+    userId: input.userId,
+    maxTokens: 4000,
+    system:
+      "You help a software engineer write the self-assessment for a performance review. Write it in the first " +
+      "person, in a confident, specific, professional tone, as markdown with short sections: Summary, Key " +
+      "accomplishments (lead with impact), Feedback and recognition, Goals, and Growth focus for next cycle. " +
+      "Use ONLY the facts in the brag doc — do not invent achievements, metrics, scope, dates, names or " +
+      "technologies. If a section has no supporting facts, leave it out. Return only the markdown.",
+    messages: [
+      {
+        role: "user",
+        content:
+          (input.cycle ? `Review cycle: ${input.cycle}\n\n` : "") + `Brag doc:\n"""\n${input.bragDoc}\n"""`,
+      },
+    ],
+  });
+  return text.trim();
+}

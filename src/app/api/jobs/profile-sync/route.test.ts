@@ -97,4 +97,23 @@ describe("POST /api/jobs/profile-sync", () => {
     const res = await POST(req("/api/jobs/profile-sync", "POST", {}));
     expect(res.status).toBe(500);
   });
+  it("never sends people notes, 1:1s, reviews or goals from career growth", async () => {
+    const job = await seedJob();
+    const uid = globalThis.__testUserId;
+    await db.insert(schema.journalEntries).values({ userId: uid, jobId: job.id, kind: "achievement", title: "Shipped search" });
+    const [person] = await db
+      .insert(schema.jobPeople)
+      .values({ userId: uid, jobId: job.id, name: "Pat", relationship: "manager", notes: "PRIVATE-PERSON" })
+      .returning();
+    await db.insert(schema.oneOnOnes).values({ userId: uid, jobId: job.id, personId: person.id, notes: "PRIVATE-1ON1", actionItems: '[{"text":"PRIVATE-ACTION","done":false}]' });
+    await db.insert(schema.performanceReviews).values({ userId: uid, jobId: job.id, cycle: "H1", outcome: "PRIVATE-OUTCOME +12%" });
+    await db.insert(schema.goals).values({ userId: uid, jobId: job.id, title: "PRIVATE-GOAL" });
+    await db.insert(schema.jobBenefits).values({ userId: uid, jobId: job.id, ptoDays: 27, other: "PRIVATE-PTO" });
+    expect((await POST(req("/api/jobs/profile-sync", "POST", {}))).status).toBe(200);
+    const sent = JSON.stringify(mockAssist.mock.calls[0][0]);
+    expect(sent).toContain("Shipped search");
+    for (const s of ["PRIVATE-PERSON", "PRIVATE-1ON1", "PRIVATE-ACTION", "PRIVATE-OUTCOME", "PRIVATE-GOAL", "PRIVATE-PTO"]) {
+      expect(sent).not.toContain(s);
+    }
+  });
 });

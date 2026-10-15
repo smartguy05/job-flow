@@ -26,7 +26,8 @@ such as MCP reuses the exact same code path.
 | `drafts.ts` | `createDraft(userId, applicationId, { type?, extra? })`: generates via `generateDraft`, stores it and logs a `note` event. Unknown `type` gives `ValidationError`. | `/api/applications/[id]/drafts`; MCP `draft_message` |
 | `jobs.ts` | `listJobs` (current first, `tenureMonths`, parsed technologies) | `GET /api/jobs`; MCP `list_jobs` |
 | `contacts.ts` | `listContacts`, `createContact`, `findContactByEmail` (trimmed, case-insensitive) | `/api/contacts` |
-| `attention.ts` | `candidatesForUser(userId, quietDays)`, `OPEN_STATUSES`, `Candidate` | `/api/cron/reminders` (GET and the sweep); MCP `needs_attention` |
+| `attention.ts` | `candidatesForUser(userId, quietDays)`, `OPEN_STATUSES`, `Candidate`; `reviewCandidatesForUser(userId, withinDays = 14)` (current jobs with a not-yet-nudged review in the window), `usersWithUpcomingReviews`, `markReviewReminded` | `/api/cron/reminders` (GET and the sweep); MCP `needs_attention` |
+| `career-growth.ts` | `listItems` / `createItem` / `updateItem` / `deleteItem(kind, userId, jobId, …)` for `people`, `oneOnOnes`, `reviews` and `goals` (job must be owned; `personId`/`compensationId` must be on the same job, else `ValidationError`); `getBragDoc(userId, jobId, { from?, to? })` (loads brag-safe columns only); `draftJobSelfReview` (`ValidationError` on an empty brag doc) | `/api/jobs/[id]/{people,one-on-ones,reviews,goals}` (via `src/lib/growth-routes.ts`), `/brag-doc`, `/self-review`; MCP `log_one_on_one`, `add_review`, `update_goal`, `get_brag_doc` |
 | `journal.ts` | `listJournal(userId, { jobId?, from?, to?, kind? })` (across all jobs when `jobId` is omitted), `addJournalEntry`, `updateJournalEntry` (clears `syncedAt`), `deleteJournalEntry` | `/api/jobs/[id]/journal`, `/api/journal/[id]`; MCP `add_journal_entry`, `list_journal` |
 | `emails.ts` | `ingestEmail` (classify via `classifyEmail`, rank with `rankCandidates`, propose, upsert `ingested_emails`; applies only on `apply` + a confident match), `applyEmailActions` (atomic claim on `applied_at`, runs actions through `updateApplication`/`addInterview`/`logEvent`, releases the claim on failure), `listRecentEmails` | `GET /api/emails`; MCP `ingest_email`, `apply_email_actions` |
 | `resumes.ts` | `getResumeFile(userId, resumeId, "pdf" \| "docx")` → `{ data, filename, contentType }`; `getResumeSummary` (metadata + `hasPdf`/`hasDocx`, no bytes); `parseVariantLabel` (trim, ≤80 chars, else `ValidationError`) | `/api/resumes/[id]/download`, `PATCH /api/resumes/[id]`; MCP `generate_resume` |
@@ -49,6 +50,7 @@ test user's id, including cross-tenant cases built with `seedUser()`. The route 
   [MCP server](../features/mcp.md)
 - [Applications & tracking](../features/applications-and-tracking.md) ·
   [Employment history](../features/employment-history.md) ·
+  [Career growth](../features/career-growth.md) ·
   [Reminders & analytics](../features/reminders-and-analytics.md) ·
   [Email ingestion](../features/email-ingestion.md) ·
   [Testing](../operations/testing.md)

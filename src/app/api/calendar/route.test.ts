@@ -88,4 +88,20 @@ describe("GET /api/calendar", () => {
     expect(events.some((e) => e.applicationId === otherApp[0].id)).toBe(false);
     expect(events.some((e) => e.company === "Secret Co")).toBe(false);
   });
+
+  it("adds a review event for each job with a next review date, scoped to the user", async () => {
+    const [mine] = await db
+      .insert(schema.jobs)
+      .values({ userId: globalThis.__testUserId, company: "Mine Co", companyNormalized: "mine", title: "Engineer", nextReviewDate: "2026-11-02" })
+      .returning();
+    const other = await seedUser("calendar-review-other");
+    await db
+      .insert(schema.jobs)
+      .values({ userId: other.id, company: "Their Co", companyNormalized: "their", title: "Engineer", nextReviewDate: "2026-11-03" });
+    const events = await fetchEvents();
+    const reviews = events.filter((e) => e.type === "review");
+    expect(reviews).toHaveLength(1);
+    expect(reviews[0]).toMatchObject({ jobId: mine.id, sourceId: mine.id, company: "Mine Co", title: "Performance review" });
+    expect(reviews[0].date.slice(0, 10)).toBe("2026-11-02");
+  });
 });

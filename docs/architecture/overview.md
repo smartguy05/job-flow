@@ -49,10 +49,11 @@ JobFlow is a self-hosted, multi-user job-application tracker and tailored-resume
 | User provisioning | `src/lib/auth/users.ts` | `upsertUserBySub`. |
 | Career context | `src/lib/career.ts` | Assembles profile + files + skill for generation. |
 | LLM provider | `src/lib/llm-provider.ts` | `complete()` dispatch on per-user provider setting. |
-| LLM prompts | `src/lib/llm.ts` | Extraction, generation, refine, drafts, profile assist. |
+| LLM prompts | `src/lib/llm.ts` | Extraction, generation, refine, drafts, profile assist, self-review draft. |
 | Resume render | `src/lib/render-resume.ts` | DOCX build + soffice/pdfinfo → buffers. |
 | Resume service | `src/lib/resume-service.ts` | 2-page fit loop, persistence. |
 | Services | `src/lib/services/*.ts` | User-scoped domain operations shared by routes and MCP tools. See [service layer](service-layer.md). |
+| Career growth | `src/lib/{career-growth,brag-doc,growth-routes}.ts` | People/1:1/review/goal parsing and manager history, the pure brag doc (Markdown/DOCX), and shared `/api/jobs/[id]/*` handlers. See [career growth](../features/career-growth.md). |
 | Settings | `src/lib/settings.ts` | Per-user key/value settings. |
 | Events/dedup/ntfy | `src/lib/{events,dedup,ntfy}.ts` | Activity log, duplicate detection, push. |
 | Startup | `src/instrumentation.ts` | Runs migrations once at server boot. |
@@ -70,4 +71,4 @@ JobFlow is a self-hosted, multi-user job-application tracker and tailored-resume
 ## Related
 
 - [Data model](data-model.md) · [Database layer](database.md) · [Service layer](service-layer.md) · [MCP server](../features/mcp.md) ·
-  [Deployment](../operations/deployment.md) · [Testing](../operations/testing.md)
+  [Career growth](../features/career-growth.md) · [Deployment](../operations/deployment.md) · [Testing](../operations/testing.md)

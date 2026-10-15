@@ -2,15 +2,19 @@
 // (`src/app/api/calendar/route.ts`) produces `CalendarEvent[]`; the page
 // (`src/app/calendar/page.tsx`) lays them out with the grid/grouping helpers here.
 
-export type CalendarEventType = "interview" | "deadline" | "next_action";
+export type CalendarEventType = "interview" | "deadline" | "next_action" | "review";
 
 export type CalendarEvent = {
   type: CalendarEventType;
   date: string; // ISO timestamp
-  applicationId: number;
+  // Application events carry applicationId; `review` events (a held job's next performance
+  // review) carry jobId instead.
+  applicationId?: number;
+  jobId?: number;
   // Stable per-event id for building calendar UIDs. Interviews use the interview row id
-  // (an application can have several); deadlines/next-actions are one-per-application, so
-  // this is left undefined and UID generation falls back to applicationId.
+  // (an application can have several); reviews use the job id; deadlines/next-actions are
+  // one-per-application, so this is left undefined and UID generation falls back to
+  // applicationId.
   sourceId?: number;
   company: string | null;
   roleTitle: string;
@@ -66,8 +70,14 @@ export function eventsByDay(events: CalendarEvent[]): Map<string, CalendarEvent[
   return map;
 }
 
+// In-app link for an event: the job page for reviews, else the application.
+export function eventHref(ev: CalendarEvent): string {
+  return ev.jobId != null ? `/jobs/${ev.jobId}` : `/applications/${ev.applicationId}`;
+}
+
 // Color palette aligned with `statusColor` in src/lib/ui.ts.
 export function eventColor(ev: CalendarEvent): { bg: string; fg: string } {
+  if (ev.type === "review") return { bg: "#ede9fe", fg: "#5b21b6" }; // violet
   if (ev.type === "deadline") return { bg: "#fee2e2", fg: "#991b1b" }; // red
   if (ev.type === "next_action") return { bg: "#fef3c7", fg: "#92400e" }; // amber
   // interview — color by outcome
@@ -87,6 +97,7 @@ export const EVENT_TYPE_LABELS: Record<CalendarEventType, string> = {
   interview: "Interview",
   deadline: "Deadline",
   next_action: "Next action",
+  review: "Review",
 };
 
 // ---------------------------------------------------------------------------
@@ -152,6 +163,7 @@ const ICS_SUMMARY_PREFIX: Record<CalendarEventType, string> = {
   interview: "Interview",
   deadline: "Deadline",
   next_action: "Next action",
+  review: "Review",
 };
 
 function icsSummary(ev: CalendarEvent): string {
@@ -194,7 +206,7 @@ export function toICS(events: CalendarEvent[], opts: ToICSOptions = {}): string 
     }
     lines.push(`SUMMARY:${escapeICSText(icsSummary(ev))}`);
     if (descParts.length) lines.push(`DESCRIPTION:${escapeICSText(descParts.join(" · "))}`);
-    if (baseUrl) lines.push(`URL:${escapeICSText(`${baseUrl}/applications/${ev.applicationId}`)}`);
+    if (baseUrl) lines.push(`URL:${escapeICSText(`${baseUrl}${eventHref(ev)}`)}`);
     lines.push("END:VEVENT");
   }
 

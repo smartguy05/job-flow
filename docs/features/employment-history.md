@@ -8,7 +8,13 @@ JobFlow tracks the jobs you actually hold, not just the ones you apply to. For e
 
 Over time this becomes your record of what you did, what you were paid, and what you want next time. Resume-safe parts of it are folded back into the career profile, but only when you approve.
 
-Pages: `/jobs` (`src/app/jobs/page.tsx`) and `/jobs/[id]` (`src/app/jobs/[id]/page.tsx`).
+Pages: `/jobs` (`src/app/jobs/page.tsx`) and `/jobs/[id]` (`src/app/jobs/[id]/page.tsx`). The job page is split into tabs, each a component under `src/app/jobs/[id]/_components/`:
+- **Overview**: job fields, the next review date, the derived current manager and the profile-sync panel;
+- **Pay**: the comp timeline, where rows can be added, **edited** and removed, plus benefits;
+- **People & 1:1s** and **Reviews & Goals**: see [career growth](career-growth.md);
+- **Journal**: entries can be added, **edited** and deleted.
+
+The active tab is kept in the URL hash (for example `/jobs/3#people`), parsed by `jobTabFromHash()` in `src/lib/job-labels.ts`.
 Logic lives in `src/lib/jobs.ts`, `src/lib/job-input.ts`, `src/lib/profile-sync.ts`, `src/lib/job-import-content.ts`, `src/lib/text-diff.ts` and `src/lib/job-labels.ts`.
 
 ## Where jobs come from
@@ -54,7 +60,7 @@ Logic lives in `src/lib/jobs.ts`, `src/lib/job-input.ts`, `src/lib/profile-sync.
 3. That instruction goes through the existing `assistCareerProfile()`. The response is `{ current, proposed, entryIds, jobIds }`, and nothing is saved.
 4. `ProfileSyncPanel` (`src/components/ProfileSyncPanel.tsx`) shows a line diff (`diffLines()`) and lets you edit the proposal. On **Save** it calls `PUT /api/career-profile`, then `POST /api/journal/mark-synced`.
 
-**Privacy rule:** complaints, notes, compensation, benefits, reason for leaving and job notes are **never** included in the instruction, so they cannot reach the career profile or a resume. Tests in `src/lib/profile-sync.test.ts` and the route test enforce this.
+**Privacy rule:** complaints, notes, compensation, benefits, reason for leaving and job notes are **never** included in the instruction. Neither is anything from [career growth](career-growth.md#privacy-rule) (people notes, 1:1s, reviews, goals), so they cannot reach the career profile or a resume. Tests in `src/lib/profile-sync.test.ts` and the route test enforce this.
 
 Editing a job (PATCH) clears its `profile_synced_at`, and editing a journal entry clears its `synced_at`. Either way, the change is offered again in the next sync.
 
@@ -79,6 +85,7 @@ Profile jobs are also matched against the won applications in the same preview, 
 
 ## Related
 
+- [Career growth](career-growth.md) (people, 1:1s, reviews, goals, brag doc, self-review)
 - [Applications & tracking](applications-and-tracking.md)
 - [Resume generation](resume-generation.md) (career profile, the never-fabricate rule)
 - [Offer comparison](offer-comparison.md)

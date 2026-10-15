@@ -8,10 +8,10 @@ import type { CalendarEvent } from "@/lib/calendar";
 // which is intentionally DB-free.
 
 // Aggregate every dated item across a user's applications into a flat CalendarEvent list:
-// scheduled interviews, application deadlines, and next-action dates. All queries are
-// scoped by userId.
+// scheduled interviews, application deadlines, next-action dates, and the next performance
+// review of each job. All queries are scoped by userId.
 export async function getCalendarEvents(userId: string): Promise<CalendarEvent[]> {
-  const [interviews, deadlines, nextActions] = await Promise.all([
+  const [interviews, deadlines, nextActions, reviews] = await Promise.all([
     db
       .select({
         id: schema.interviews.id,
@@ -47,6 +47,15 @@ export async function getCalendarEvents(userId: string): Promise<CalendarEvent[]
       })
       .from(schema.applications)
       .where(and(eq(schema.applications.userId, userId), isNotNull(schema.applications.nextActionDate))),
+    db
+      .select({
+        jobId: schema.jobs.id,
+        date: schema.jobs.nextReviewDate,
+        company: schema.jobs.company,
+        title: schema.jobs.title,
+      })
+      .from(schema.jobs)
+      .where(and(eq(schema.jobs.userId, userId), isNotNull(schema.jobs.nextReviewDate))),
   ]);
 
   return [
@@ -78,6 +87,17 @@ export async function getCalendarEvents(userId: string): Promise<CalendarEvent[]
       roleTitle: r.roleTitle,
       title: r.nextAction ?? "Next action",
       status: r.status,
+    })),
+    // Date-only: pin to midday UTC so the day is stable in the grid and the all-day .ics.
+    ...reviews.map((r) => ({
+      type: "review" as const,
+      date: `${r.date}T12:00:00.000Z`,
+      jobId: r.jobId,
+      sourceId: r.jobId,
+      company: r.company,
+      roleTitle: r.title,
+      title: "Performance review",
+      status: "current",
     })),
   ];
 }

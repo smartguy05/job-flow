@@ -3,14 +3,16 @@ import { db, schema } from "@/db";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { getUser, unauthorized } from "@/lib/auth";
 import { jobInput } from "@/lib/job-input";
+import { currentManager, managerHistory } from "@/lib/career-growth";
 import { compSummary, getOwnedJob, mergeTechnologies, parseTechList, serializeTech, tenureMonths, todayISO } from "@/lib/jobs";
 
 type Ctx = { params: Promise<{ id: string }> };
 const getId = async (ctx: Ctx) => parseInt((await ctx.params).id, 10);
 const notFound = () => NextResponse.json({ error: "Not found" }, { status: 404 });
 
-// Full job detail: the job, its comp timeline + summary, benefits, journal and the merged
-// technology list (job-level plus every journal entry's).
+// Full job detail: the job, its comp timeline + summary, benefits, journal, the merged
+// technology list (job-level plus every journal entry's), and the manager derived from the
+// job's people (manager rows by date range, else the free-text `manager` field).
 export async function GET(req: NextRequest, ctx: Ctx) {
   const user = await getUser(req);
   if (!user) return unauthorized();
@@ -30,6 +32,11 @@ export async function GET(req: NextRequest, ctx: Ctx) {
     .from(schema.journalEntries)
     .where(and(eq(schema.journalEntries.jobId, job.id), eq(schema.journalEntries.userId, user.id)))
     .orderBy(desc(schema.journalEntries.entryDate), desc(schema.journalEntries.id));
+  const people = await db
+    .select()
+    .from(schema.jobPeople)
+    .where(and(eq(schema.jobPeople.jobId, job.id), eq(schema.jobPeople.userId, user.id)));
+  const history = managerHistory(people).map(({ id, name, title, startDate, endDate }) => ({ id, name, title, startDate, endDate }));
   return NextResponse.json({
     job: { ...serializeTech(job), tenureMonths: tenureMonths(job.startDate, job.endDate, todayISO()) },
     compensation,
@@ -37,6 +44,8 @@ export async function GET(req: NextRequest, ctx: Ctx) {
     benefits: benefits ?? null,
     entries: entries.map(serializeTech),
     technologies: mergeTechnologies(parseTechList(job.technologies), ...entries.map((e) => parseTechList(e.technologies))),
+    currentManager: currentManager(people, job.manager, todayISO()),
+    managerHistory: history,
   });
 }
 
@@ -46,9 +55,12 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
   const id = await getId(ctx);
   const { values, error } = jobInput(await req.json());
   if (error) return NextResponse.json({ error }, { status: 400 });
+  // Edited facts → offer the job in the next profile sync. A review-date change alone is not
+  // a profile fact, so it leaves the sync state alone.
+  const profileFact = Object.keys(values).some((k) => k !== "nextReviewDate");
   const updated = await db
     .update(schema.jobs)
-    .set({ ...values, profileSyncedAt: null, updatedAt: new Date() }) // edited → offer in next sync
+    .set({ ...values, ...(profileFact ? { profileSyncedAt: null } : {}), updatedAt: new Date() })
     .where(and(eq(schema.jobs.id, id), eq(schema.jobs.userId, user.id)))
     .returning({ id: schema.jobs.id });
   if (updated.length === 0) return notFound();

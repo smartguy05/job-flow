@@ -19,6 +19,7 @@ import {
   suggestInventions,
   extractInventions,
   classifyEmail,
+  draftSelfReview,
 } from "./llm";
 import { makeResumeContent } from "@/test/fixtures";
 import type { ComparableApp } from "./offer-comparison";
@@ -384,5 +385,17 @@ describe("classifyEmail", () => {
   it("coerces an unknown kind to other", async () => {
     mockComplete.mockResolvedValue('{"kind":"phishing","summary":"?"}');
     expect((await classifyEmail(email)).kind).toBe("other");
+  });
+});
+
+describe("draftSelfReview", () => {
+  it("sends only the brag doc, forbids invention, and returns trimmed markdown", async () => {
+    mockComplete.mockResolvedValue("  ## Self-review\nI shipped search.  ");
+    const out = await draftSelfReview({ userId: globalThis.__testUserId, bragDoc: "# Brag doc\n- Shipped search", cycle: "2026 H1" });
+    expect(out).toBe("## Self-review\nI shipped search.");
+    const call = mockComplete.mock.calls[0][0];
+    expect(call.system).toMatch(/do not invent/i);
+    expect(JSON.stringify(call.messages)).toContain("Shipped search");
+    expect(JSON.stringify(call.messages)).toContain("2026 H1");
   });
 });

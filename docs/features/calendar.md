@@ -1,18 +1,23 @@
 # Calendar
 
-A single timeline of everything dated across all of a user's applications, so scheduled and
+A single timeline of everything dated across all of a user's applications and held jobs, so scheduled and
 past interviews are visible in one place rather than one application at a time. The page lives
 at `/calendar` (linked from the top nav in `src/app/layout.tsx`).
 
 ## What it shows
 
-Three event types, aggregated from existing tables — no new schema:
+Four event types, aggregated from existing tables:
 
 | Type | Source | Title | Color |
 |---|---|---|---|
 | `interview` | `interviews.scheduledAt` (non-null), joined to `applications` for company/role | `interviews.round` (fallback "Interview") | by `outcome`: blue = pending, green = passed, red = failed, slate = cancelled |
 | `deadline` | `applications.applicationDeadline` | "Application deadline" | red |
 | `next_action` | `applications.nextActionDate` | `applications.nextAction` (fallback "Next action") | amber |
+| `review` | `jobs.nextReviewDate` (see [career growth](career-growth.md#next-review-date)) | "Performance review" | violet |
+
+Review events carry `jobId` (and `sourceId` = job id) instead of `applicationId`. They are
+dated at midday UTC so the day stays stable. `eventHref()` links them to `/jobs/[id]`, and
+every other event to `/applications/[id]`.
 
 Interviews with no `scheduledAt` are omitted (they have no place on a calendar).
 
@@ -25,8 +30,9 @@ Interviews with no `scheduledAt` are omitted (they have no place on a calendar).
   replaced by an agenda list of upcoming events grouped by day (see
   [mobile & PWA](mobile-and-pwa.md)).
 - **Agenda** — below the grid, the selected day's events (or, when that day is empty, the next
-  10 upcoming events). Each row links to `/applications/[id]`, where interviews are managed.
-- **Legend** — maps colors to the three event types.
+  10 upcoming events). Each row links to `/applications/[id]`, where interviews are managed, or, for a review, to
+  `/jobs/[id]`.
+- **Legend** — maps colors to the four event types.
 
 The view is **read-only**: there is no scheduling/editing UI on the calendar. Interviews are
 created and edited on the [application detail page](applications-and-tracking.md) via the
@@ -34,7 +40,7 @@ created and edited on the [application detail page](applications-and-tracking.md
 
 ## Subscribable feed (`.ics`)
 
-The same three event types are also exposed as an iCalendar feed that can be subscribed to
+The same event types are also exposed as an iCalendar feed that can be subscribed to
 from Google, Apple, or Outlook Calendar, kept in sync as applications change.
 
 - **Opt-in, per-user token.** External calendar clients cannot perform the Authentik OIDC
@@ -49,10 +55,10 @@ from Google, Apple, or Outlook Calendar, kept in sync as applications change.
   `/api/calendar/feed` prefix, and kept off the settings `PUT` so the token can't leak
   through it). `POST` mints a fresh token, invalidating any previous subscription URL.
 - **Event styling.** Interviews are **timed** events (UTC `DTSTART`); deadlines and
-  next-actions are **all-day** (`DTSTART;VALUE=DATE`). No `VALARM` — reminders are handled
+  next-actions and reviews are **all-day** (`DTSTART;VALUE=DATE`). No `VALARM` — reminders are handled
   by ntfy push (see [reminders](reminders-and-analytics.md)). Each `VEVENT` has a stable
-  `UID` (`{type}-{interviewId|applicationId}@jobflow`) so clients update in place instead
-  of duplicating, plus a `URL` back to the application. The absolute feed/event URLs use
+  `UID` (`{type}-{interviewId|jobId|applicationId}@jobflow`) so clients update in place
+  instead of duplicating, plus a `URL` back to the application (or the job, for reviews). The absolute feed/event URLs use
   `APP_BASE_URL`.
 
 ## Code map
@@ -63,7 +69,7 @@ from Google, Apple, or Outlook Calendar, kept in sync as applications change.
   `EVENT_TYPE_LABELS`, and the iCalendar serializers (`toICS`, `escapeICSText`,
   `formatICSDate`, `foldICSLine`, `eventUID`).
 - `src/lib/calendar-data.ts` — DB-backed helpers shared by the JSON route and the feed:
-  `getCalendarEvents(userId)` (the three parallel `userId`-scoped queries) plus the feed
+  `getCalendarEvents(userId)` (four parallel `userId`-scoped queries) plus the feed
   token helpers (`getOrCreateCalendarToken`, `regenerateCalendarToken`,
   `findUserIdByCalendarToken`).
 - `src/app/api/calendar/route.ts` — `GET /api/calendar`; auth-scoped, returns the merged
@@ -82,4 +88,5 @@ from Google, Apple, or Outlook Calendar, kept in sync as applications change.
   next-actions are set.
 - [Reminders & analytics](reminders-and-analytics.md) — the other view over dated fields
   (`nextActionDate`, `lastActivityAt`) for follow-up nudges.
+- [Career growth](career-growth.md) — where the next review date is set.
 - [API reference](../api/reference.md#calendar) · [Data model](../architecture/data-model.md)
