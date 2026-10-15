@@ -156,6 +156,22 @@ describe("computeAnalytics", () => {
     expect(a.timeToFirstResponse).toEqual({ n: 5, medianDays: 6, p75Days: 10, smallSample: false });
   });
 
+  it("ignores an appliedAt that was backfilled by the response's own status change", () => {
+    // Saved without marking applied; moving it to in_progress backfills appliedAt to the
+    // moment of the status change, which is not a real application date (0-day "response").
+    const changedAt = new Date("2026-02-01T09:00:00.000Z");
+    const backfilled = app({ appliedAt: new Date(changedAt.getTime() - 3) });
+    const real = app({ appliedAt: D("2026-01-01") });
+    const events = [
+      { applicationId: backfilled.id, type: "status_change", detail: "applied → in_progress", createdAt: changedAt },
+      { applicationId: real.id, type: "status_change", detail: "applied → in_progress", createdAt: D("2026-01-08") },
+    ];
+    const a = computeAnalytics(input({ apps: [backfilled, real], events }));
+    expect(a.timeToFirstResponse).toMatchObject({ n: 1, medianDays: 7 });
+    // still counts as a response for the funnel
+    expect(a.funnel.overall.responded).toBe(2);
+  });
+
   it("groups response rate by the sent resume's variant label", () => {
     const a1 = app({ status: "in_progress" });
     const a2 = app();

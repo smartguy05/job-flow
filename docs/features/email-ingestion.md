@@ -71,7 +71,9 @@ has is left out.
 | `recruiter_reply` | `set_next_action` ("Reply to the recruiter" or the suggestion) |
 | `application_ack`, `other` | none |
 
-Every kind also proposes `log_event` with "Email (kind): summary".
+Every kind also proposes `log_event` with "Email (kind): summary" (truncated to the 500-char
+event-detail limit). Action input is validated up front, including that `nextActionDate` is a
+real date, so a bad action is rejected before any action runs.
 
 ## Applying and idempotency
 

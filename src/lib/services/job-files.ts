@@ -23,6 +23,11 @@ async function ownedJobId(userId: string, jobId: number): Promise<number> {
   return job.id;
 }
 
+// A non-numeric path id (NaN) would reach Postgres as an invalid integer; treat it as missing.
+function checkFileId(fileId: number) {
+  if (!Number.isInteger(fileId)) throw new NotFoundError();
+}
+
 const scope = (userId: string, jobId: number, fileId: number) =>
   and(eq(schema.jobFiles.id, fileId), eq(schema.jobFiles.jobId, jobId), eq(schema.jobFiles.userId, userId));
 
@@ -64,6 +69,7 @@ export async function getJobFile(
   jobId: number,
   fileId: number,
 ): Promise<{ name: string; mimeType: string; data: Buffer }> {
+  checkFileId(fileId);
   const id = await ownedJobId(userId, jobId);
   const [f] = await db
     .select({ name: schema.jobFiles.name, mimeType: schema.jobFiles.mimeType, data: schema.jobFiles.data })
@@ -75,6 +81,7 @@ export async function getJobFile(
 }
 
 export async function deleteJobFile(userId: string, jobId: number, fileId: number): Promise<void> {
+  checkFileId(fileId);
   const id = await ownedJobId(userId, jobId);
   const deleted = await db.delete(schema.jobFiles).where(scope(userId, id, fileId)).returning({ id: schema.jobFiles.id });
   if (deleted.length === 0) throw new NotFoundError();

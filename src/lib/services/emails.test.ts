@@ -81,6 +81,18 @@ describe("ingestEmail", () => {
     expect((await eventsFor(id)).filter((e) => e.type === "email")).toHaveLength(1);
   });
 
+  it("applies a confident match even when the summary is at its maximum length", async () => {
+    // The classifier caps summary at 500 chars; the default event detail prefixes it with
+    // "Email (<kind>): ", which used to overflow the 500-char log_event limit and throw.
+    mockClassify.mockResolvedValue(cls({ summary: "x".repeat(500) }));
+    const id = await insertApp({ company: "Longsum", companyNormalized: "longsum" });
+    const out = await ingestEmail(uid(), { ...email("m-long", "jobs@longsum.com"), apply: true });
+    expect(out.applied).toBe(true);
+    const ev = (await eventsFor(id)).filter((e) => e.type === "email");
+    expect(ev).toHaveLength(1);
+    expect(ev[0].detail!.length).toBeLessThanOrEqual(500);
+  });
+
   it("does not apply when the match is ambiguous", async () => {
     await insertApp({ company: "Soylent", companyNormalized: "soylent", roleTitle: "Backend Engineer" });
     await insertApp({ company: "Soylent", companyNormalized: "soylent", roleTitle: "Frontend Engineer" });
@@ -198,6 +210,21 @@ describe("applyEmailActions", () => {
     const [row] = await db.select().from(schema.ingestedEmails).where(eq(schema.ingestedEmails.messageId, "m-retry"));
     expect(row.appliedAt).toBeNull();
     await applyEmailActions(uid(), { messageId: "m-retry", applicationId: id, actions: [] });
+  });
+
+  it("rejects an impossible next-action date before running any action", async () => {
+    // A YYYY-MM-DD-shaped but invalid date used to pass validation, so the interview was
+    // inserted, the next action then threw, the claim was released and a retry added the
+    // interview a second time.
+    const id = await insertApp({ company: "BadDate", companyNormalized: "baddate" });
+    await ingestEmail(uid(), email("m-bad-date", "a@b.example"));
+    const actions = [
+      { type: "add_interview" as const, scheduledAt: "2026-11-01T15:00:00Z" },
+      { type: "set_next_action" as const, nextAction: "Prep", nextActionDate: "2026-13-45" },
+    ];
+    await expect(applyEmailActions(uid(), { messageId: "m-bad-date", applicationId: id, actions })).rejects.toThrow();
+    const interviews = await db.select().from(schema.interviews).where(eq(schema.interviews.applicationId, id));
+    expect(interviews).toHaveLength(0);
   });
 });
 

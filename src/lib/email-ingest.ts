@@ -168,6 +168,8 @@ export async function loadCandidateApps(userId: string): Promise<CandidateApp[]>
 
 // --- Actions ---
 
+export const EVENT_DETAIL_MAX = 500;
+
 const isoDateTime = z
   .string()
   .refine((s) => !Number.isNaN(new Date(s).getTime()), "use an ISO 8601 date-time");
@@ -184,9 +186,16 @@ export const EmailActionSchema = z.discriminatedUnion("type", [
   z.object({
     type: z.literal("set_next_action"),
     nextAction: z.string().trim().min(1).max(500),
-    nextActionDate: z.string().regex(/^\d{4}-\d{2}-\d{2}/, "use an ISO date (YYYY-MM-DD)").nullable().optional(),
+    // Checked as a real date up front: an invalid one would only fail mid-apply, after
+    // earlier actions (e.g. add_interview) already ran.
+    nextActionDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}/, "use an ISO date (YYYY-MM-DD)")
+      .refine((s) => !Number.isNaN(new Date(s).getTime()), "use an ISO date (YYYY-MM-DD)")
+      .nullable()
+      .optional(),
   }),
-  z.object({ type: z.literal("log_event"), detail: z.string().trim().min(1).max(500) }),
+  z.object({ type: z.literal("log_event"), detail: z.string().trim().min(1).max(EVENT_DETAIL_MAX) }),
 ]);
 
 export const EmailActionsSchema = z.array(EmailActionSchema).max(10);
@@ -195,9 +204,12 @@ export type EmailAction = z.infer<typeof EmailActionSchema>;
 
 export const INTERVIEW_ROUND = "Interview (from email)";
 
+// "Email (<kind>): <summary>", capped to the log_event limit (summaries can be 500 chars on
+// their own) and always keeping the "Email (<kind>)" prefix analytics keys on.
 export function emailEventDetail(kind: EmailKind, summary: string): string {
   const label = `Email (${kind.replace(/_/g, " ")})`;
-  return summary ? `${label}: ${summary}` : label;
+  const detail = summary ? `${label}: ${summary}` : label;
+  return detail.length > EVENT_DETAIL_MAX ? `${detail.slice(0, EVENT_DETAIL_MAX - 1)}…` : detail;
 }
 
 // Map a classification to proposed actions for the matched application. `currentStatus`

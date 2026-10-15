@@ -152,7 +152,13 @@ export async function createItem(kind: GrowthKind, userId: string, jobId: number
   return { id: row.id };
 }
 
+// A non-numeric path id (NaN) would reach Postgres as an invalid integer; treat it as missing.
+function checkId(id: number) {
+  if (!Number.isInteger(id)) throw new NotFoundError();
+}
+
 export async function updateItem(kind: GrowthKind, userId: string, jobId: number, id: number, body: Body): Promise<void> {
+  checkId(id);
   const job = await ownedJob(userId, jobId);
   let values = parse(kind, body, false);
   await checkLinks(userId, job.id, values);
@@ -176,6 +182,7 @@ export async function updateItem(kind: GrowthKind, userId: string, jobId: number
 }
 
 export async function deleteItem(kind: GrowthKind, userId: string, jobId: number, id: number): Promise<void> {
+  checkId(id);
   const job = await ownedJob(userId, jobId);
   const t = tableOf(kind);
   const deleted = await db

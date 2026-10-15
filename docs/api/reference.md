@@ -94,7 +94,7 @@ See [resume generation](../features/resume-generation.md).
 | `POST /api/jobs` | Create. Body: `company`, `title` (req), `startDate?`/`endDate?` (`YYYY-MM-DD`), `team?`, `manager?`, `employmentType?`, `locationMode?`, `location?`, `technologies?` (array or comma string), `reasonForLeaving?`, `notes?`. → `{ id }`. |
 | `GET /api/jobs/[id]` | `{ job, compensation, compSummary, benefits, entries, technologies, currentManager, managerHistory }`. `currentManager` is derived from dated `manager` people, falling back to `job.manager`. |
 | `PATCH /api/jobs/[id]` | Partial update (same fields, plus `nextReviewDate`); clears `profileSyncedAt` unless only `nextReviewDate` changed. |
-| `DELETE /api/jobs/[id]` | Delete (comp, benefits, journal, people, 1:1s, reviews and goals cascade). |
+| `DELETE /api/jobs/[id]` | Delete (comp, benefits, journal, people, 1:1s, reviews, goals, equity grants, PTO and documents cascade). |
 | `GET/POST /api/jobs/[id]/compensation` | List / add a comp row. Body: `kind`, `effectiveDate`, `baseAmount`, `currency`, `period` (`year`\|`hour`), `title`, `bonus`, `equity`, `notes`. |
 | `PATCH/DELETE /api/jobs/[id]/compensation/[compId]` | Edit / remove a comp row. |
 | `PUT /api/jobs/[id]/benefits` | Upsert benefits: `health`, `retirement`, `ptoDays`, `parentalLeave`, `remotePolicy`, `other`. |
@@ -110,7 +110,7 @@ See [employment history](../features/employment-history.md).
 ## Career growth
 
 All routes are scoped to the user **and** the job in the path. Another user's job, or a row
-from a different job, gives 404. Rows are edited at `[subId]` with `PATCH` (partial) and
+from a different job, gives 404 (as does a non-numeric `[subId]` or `[fileId]`). Rows are edited at `[subId]` with `PATCH` (partial) and
 removed with `DELETE`, and both return `{ ok: true }`. Creates return `{ id }`. See
 [career growth](../features/career-growth.md).
 

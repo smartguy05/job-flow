@@ -103,6 +103,9 @@ average base pay (range midpoints), counts by source channel. `byMonth` buckets 
 - **Time to first response** (`timeToFirstResponse`): median and p75 days (linear
   interpolation, 1 decimal) from `appliedAt` to the first response event at or after it.
   Applications without `appliedAt` or without a response are excluded; `n` is the count used.
+  So are applications whose `appliedAt` was backfilled by moving them past `applied` (an
+  `applied → …` status change within a minute of `appliedAt`), since that date is not when
+  the user applied and would read as a same-day response.
 - **Response rate by resume variant** (`byResumeVariant`): grouped on the most recently
   *sent* resume (`sentAt` set) per application and its `variantLabel`, with the buckets
   `unlabeled` (sent, no label) and `no resume sent`. Labels are set via

@@ -6,6 +6,10 @@
 /** Buckets with fewer applications than this are flagged `smallSample`. */
 export const SMALL_SAMPLE = 5;
 const DAY = 24 * 60 * 60 * 1000;
+// Moving an application past "applied" without an appliedAt backfills appliedAt to the
+// moment of that status change (services/applications.ts). Such a date is not when the user
+// applied, so an appliedAt this close to an "applied → …" status change is not timed.
+const BACKFILL_WINDOW_MS = 60 * 1000;
 
 export type AnalyticsApp = {
   id: number;
@@ -198,8 +202,20 @@ export function computeAnalytics({ apps, interviews, resumes, events }: Analytic
     if (!applied || t < applied.getTime()) continue;
     if (prev == null || t < prev) firstResponse.set(e.applicationId, t);
   }
+  const backfilled = new Set<number>();
+  for (const e of events) {
+    const applied = appliedAt.get(e.applicationId);
+    if (
+      applied &&
+      e.type === "status_change" &&
+      (e.detail ?? "").startsWith("applied →") &&
+      Math.abs(e.createdAt.getTime() - applied.getTime()) < BACKFILL_WINDOW_MS
+    ) {
+      backfilled.add(e.applicationId);
+    }
+  }
   const days = apps
-    .filter((a) => a.appliedAt && firstResponse.has(a.id))
+    .filter((a) => a.appliedAt && firstResponse.has(a.id) && !backfilled.has(a.id))
     .map((a) => (firstResponse.get(a.id)! - a.appliedAt!.getTime()) / DAY);
   const round1 = (v: number | null) => (v == null ? null : Math.round(v * 10) / 10);
 
