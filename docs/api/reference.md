@@ -29,7 +29,8 @@ See [OIDC flow](../auth/oidc-flow.md).
 | `GET`, `DELETE /api/mcp` | OAuth bearer | `401` challenge without a token, otherwise `405` (`Allow: POST`). There is no standalone stream or session in stateless mode. |
 | `GET /.well-known/oauth-protected-resource` | public | RFC 9728 metadata: `resource` (`${APP_BASE_URL}/api/mcp`), `authorization_servers` (`[MCP_OAUTH_ISSUER ?? OIDC_ISSUER]`), `scopes_supported`, `bearer_methods_supported: ["header"]`. Also served at `/.well-known/oauth-protected-resource/api/mcp`. |
 
-See [MCP server](../features/mcp.md) for the tool list.
+See [MCP server](../features/mcp.md) for the tool list and [email ingestion](../features/email-ingestion.md)
+for `ingest_email`, `apply_email_actions` and the `triage_job_emails` prompt.
 
 ## Applications
 
@@ -168,6 +169,14 @@ See [calendar](../features/calendar.md).
 | `GET /api/contacts` | List the user's contacts. |
 | `POST /api/contacts` | Create. Body: `name` (req), `agency?`, `email?`, `linkedin?`, `notes?`. |
 
+## Emails
+
+| Method / Path | Purpose |
+|---|---|
+| `GET /api/emails` | The user's recently processed emails (from the MCP `ingest_email` tool), newest first. `?limit=` (default 10, max 100). Each row: `id`, `messageId`, `kind`, `summary`, `fromAddress`, `subject`, `receivedAt`, `processedAt`, `appliedAt` (null = proposed only), `applicationId`, `company`, `roleTitle`. Ingesting and applying happen only over MCP. |
+
+See [email ingestion](../features/email-ingestion.md).
+
 ## Analytics
 
 | Method / Path | Purpose |
@@ -208,4 +217,4 @@ See [reminders & analytics](../features/reminders-and-analytics.md).
 
 - [Sessions & middleware](../auth/sessions-and-middleware.md) · [Data model](../architecture/data-model.md) ·
   [Applications & tracking](../features/applications-and-tracking.md) · [Interview questions](../features/interview-questions.md) · [Resume generation](../features/resume-generation.md) ·
-  [Service layer](../architecture/service-layer.md) · [MCP server](../features/mcp.md)
+  [Service layer](../architecture/service-layer.md) · [MCP server](../features/mcp.md) · [Email ingestion](../features/email-ingestion.md)

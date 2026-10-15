@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { StatusBadge } from "@/components/StatusBadge";
-import { api, fmtRelative, STATUS_LABELS, STATUS_ORDER } from "@/lib/ui";
+import { api, emailKindLabel, fmtRelative, STATUS_LABELS, STATUS_ORDER } from "@/lib/ui";
 import { formatPay } from "@/lib/job-fields";
 import { filterApplications, type SortKey } from "@/lib/dashboard-filter";
 
@@ -31,6 +31,11 @@ type AppRow = {
   nextActionDate: string | null;
 };
 
+type EmailActivity = {
+  id: number; kind: string; summary: string; subject: string | null; processedAt: string;
+  appliedAt: string | null; applicationId: number | null; company: string | null; roleTitle: string | null;
+};
+
 type Attention = {
   id: number; company: string; roleTitle: string; daysQuiet: number;
   reason: "quiet" | "next_action_due"; nextAction: string | null;
@@ -39,6 +44,7 @@ type Attention = {
 export default function Dashboard() {
   const [apps, setApps] = useState<AppRow[]>([]);
   const [attention, setAttention] = useState<Attention[]>([]);
+  const [emails, setEmails] = useState<EmailActivity[]>([]);
   const [filter, setFilter] = useState<string>("all");
   const [q, setQ] = useState("");
   const [includeClosed, setIncludeClosed] = useState(false);
@@ -54,6 +60,8 @@ export default function Dashboard() {
         setAttention(at);
       })
       .finally(() => setLoading(false));
+    // Secondary panel: a failure here must not break the dashboard.
+    api<EmailActivity[]>("/api/emails?limit=5").then(setEmails).catch(() => setEmails([]));
   }, []);
 
   const filtered = filterApplications(apps, {
@@ -91,6 +99,30 @@ export default function Dashboard() {
                   {a.reason === "next_action_due" ? (a.nextAction || "action due") : `${a.daysQuiet}d quiet`}
                 </span>
               </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {emails.length > 0 && (
+        <div className="card p-4">
+          <div className="font-semibold mb-2">✉ Recent email activity</div>
+          <div className="flex flex-col gap-1.5">
+            {emails.map((e) => (
+              <div key={e.id} className="text-sm flex flex-wrap gap-x-2 items-baseline">
+                <span className="text-xs px-2 py-0.5 rounded-md" style={{ background: "var(--surface-2)" }}>
+                  {emailKindLabel(e.kind)}
+                </span>
+                {e.applicationId ? (
+                  <Link href={`/applications/${e.applicationId}`} className="font-medium hover:underline">
+                    {e.company} — {e.roleTitle}
+                  </Link>
+                ) : (
+                  <span style={{ color: "var(--muted)" }}>{e.appliedAt ? "Unlinked" : "Not applied"}</span>
+                )}
+                <span className="min-w-0 truncate">{e.summary || e.subject}</span>
+                <span className="text-xs" style={{ color: "var(--muted)" }}>{fmtRelative(e.processedAt)}</span>
+              </div>
             ))}
           </div>
         </div>

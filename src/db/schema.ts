@@ -247,7 +247,7 @@ export const events = pgTable(
     applicationId: integer("application_id")
       .notNull()
       .references(() => applications.id, { onDelete: "cascade" }),
-    type: text("type").notNull(), // created | status_change | resume_generated | resume_sent | interview | note | reminder_sent
+    type: text("type").notNull(), // created | status_change | resume_generated | resume_sent | interview | note | reminder_sent | email
     detail: text("detail"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().$defaultFn(now),
   },
@@ -474,4 +474,32 @@ export const inventions = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().$defaultFn(now),
   },
   (t) => [index("inventions_user_sort_idx").on(t.userId, t.sortOrder)],
+);
+
+// Emails handed to JobFlow over MCP (Claude reads the user's mailbox with its own connector;
+// JobFlow never holds mail credentials and never stores message bodies). One row per
+// (user, provider message id): the unique key is what makes ingest idempotent, and
+// `appliedAt` is claimed atomically so a message's actions are never applied twice.
+export const ingestedEmails = pgTable(
+  "ingested_emails",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    messageId: text("message_id").notNull(), // provider message id (e.g. Gmail's)
+    applicationId: integer("application_id").references(() => applications.id, { onDelete: "set null" }),
+    kind: text("kind").notNull(), // rejection | interview_invite | recruiter_reply | offer | application_ack | other
+    summary: text("summary").notNull().default(""),
+    fromAddress: text("from_address"),
+    subject: text("subject"),
+    receivedAt: timestamp("received_at", { withTimezone: true }),
+    actions: text("actions"), // JSON EmailAction[] that were applied
+    appliedAt: timestamp("applied_at", { withTimezone: true }),
+    processedAt: timestamp("processed_at", { withTimezone: true }).notNull().$defaultFn(now),
+  },
+  (t) => [
+    uniqueIndex("ingested_emails_user_message_uq").on(t.userId, t.messageId),
+    index("ingested_emails_user_processed_idx").on(t.userId, t.processedAt),
+  ],
 );

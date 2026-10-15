@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { statusColor, fmtDate, fmtRelative, STATUS_LABELS, api, toDateTimeLocal, fromDateTimeLocal } from "./ui";
+import { statusColor, fmtDate, fmtRelative, STATUS_LABELS, api, toDateTimeLocal, fromDateTimeLocal, emailKindLabel } from "./ui";
 
 describe("statusColor", () => {
   it("maps known statuses to distinct colors", () => {
@@ -75,5 +75,13 @@ describe("api", () => {
     vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({ error: "boom" }), { status: 500 }));
     await expect(api("/x")).rejects.toThrow("boom");
     vi.restoreAllMocks();
+  });
+});
+
+describe("emailKindLabel", () => {
+  it("labels known kinds and humanizes unknown ones", () => {
+    expect(emailKindLabel("interview_invite")).toBe("Interview invite");
+    expect(emailKindLabel("application_ack")).toBe("Acknowledgement");
+    expect(emailKindLabel("something_new")).toBe("something new");
   });
 });

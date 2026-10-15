@@ -129,6 +129,9 @@ Messages are plain strings, but `CompleteOpts` also accepts an optional
 read directly with no OCR/parsing library. Only [offer comparison](offer-comparison.md) passes
 documents today; every other generator is unaffected.
 
+`src/lib/llm.ts` also holds non-resume prompts that use the same `complete({ json: true })` →
+zod pattern, e.g. `classifyEmail` for [email ingestion](email-ingestion.md).
+
 ## Rendering dependencies
 
 `soffice` (LibreOffice) and `pdfinfo` (poppler-utils) must be on `PATH` — provided in the

@@ -134,7 +134,8 @@ draft is stored and a `note` event logged.
 `logEvent(userId, applicationId, type, detail?)` inserts an `events` row **and** bumps the
 application's `lastActivityAt`/`updatedAt`. Event types: `created`, `status_change`,
 `resume_generated`, `resume_copied`, `resume_final`, `resume_sent`, `interview`, `note`,
-`reminder_sent`, `expired`. The `reminder_sent` and `expired` events are inserted **directly** (not via
+`reminder_sent`, `expired`, `email` (from [email ingestion](email-ingestion.md); shown with a ✉
+marker). The `reminder_sent` and `expired` events are inserted **directly** (not via
 `logEvent`) so they do **not** bump `lastActivityAt` — a system nudge and the expiry flip
 itself are not user activity and must not reset the inactivity clock. The timeline powers the
 detail page and the [reminders & analytics](reminders-and-analytics.md) features.
@@ -150,3 +151,4 @@ List/create recruiters and agency contacts (per user). Applications reference a 
   [Offer comparison](offer-comparison.md) · [Interview questions](interview-questions.md) · [Data model](../architecture/data-model.md) ·
   [API reference](../api/reference.md) · [Service layer](../architecture/service-layer.md)
 - [MCP server](mcp.md) — capture, list and update applications and interviews from Claude.
+- [Email ingestion](email-ingestion.md) — status, interview and next-action updates from job-search email; the dashboard's "Recent email activity" list.

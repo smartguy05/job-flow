@@ -47,6 +47,9 @@ Recent additions: `0004_concerned_lord_hawal.sql` creates `interview_questions` 
 employment-history tables `jobs`, `job_compensation`, `job_benefits` and `journal_entries`
 (unique `jobs_user_application_uq`; see [employment history](../features/employment-history.md)).
 `0006_gigantic_ricochet.sql` creates `inventions` (see [prior inventions](../features/prior-inventions.md)).
+`0007_special_silver_sable.sql` creates `ingested_emails` (unique
+`ingested_emails_user_message_uq` on `(user_id, message_id)`; see
+[email ingestion](../features/email-ingestion.md)).
 
 ### Migration parity
 

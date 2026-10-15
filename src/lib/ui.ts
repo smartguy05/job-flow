@@ -8,6 +8,19 @@ export const STATUS_LABELS: Record<string, string> = {
 
 export const STATUS_ORDER = ["applied", "in_progress", "closed_won", "closed_lost", "expired"];
 
+const EMAIL_KIND_LABELS: Record<string, string> = {
+  rejection: "Rejection",
+  interview_invite: "Interview invite",
+  recruiter_reply: "Recruiter reply",
+  offer: "Offer",
+  application_ack: "Acknowledgement",
+  other: "Other",
+};
+
+export function emailKindLabel(kind: string): string {
+  return EMAIL_KIND_LABELS[kind] ?? kind.replace(/_/g, " ");
+}
+
 export function statusColor(status: string): { bg: string; fg: string } {
   switch (status) {
     case "applied":

@@ -18,6 +18,7 @@ import {
   draftInvention,
   suggestInventions,
   extractInventions,
+  classifyEmail,
 } from "./llm";
 import { makeResumeContent } from "@/test/fixtures";
 import type { ComparableApp } from "./offer-comparison";
@@ -338,5 +339,50 @@ describe("invention prompts", () => {
     mockComplete.mockResolvedValue(JSON.stringify({ inventions: [{ title: "A" }, { title: "B", inventionDate: "2018" }] }));
     const r = await extractInventions({ userId: globalThis.__testUserId, text: "EXHIBIT A ..." });
     expect(r.map((x) => x.title)).toEqual(["A", "B"]);
+  });
+});
+
+describe("classifyEmail", () => {
+  const email = {
+    userId: "u",
+    from: "Jane <jane@initech.example>",
+    subject: "Your application",
+    date: "2026-10-01",
+    body: "Unfortunately we have decided to move forward with other candidates.",
+  };
+
+  it("sends the email as untrusted data in JSON mode and parses the classification", async () => {
+    mockComplete.mockResolvedValue(
+      '```json\n{"kind":"rejection","company":"Initech","roleTitle":"Platform Engineer","summary":"Rejected after review"}\n```',
+    );
+    const r = await classifyEmail({ ...email, userId: globalThis.__testUserId });
+    expect(r).toEqual({
+      kind: "rejection",
+      company: "Initech",
+      roleTitle: "Platform Engineer",
+      interviewAt: null,
+      summary: "Rejected after review",
+      suggestedNextAction: null,
+    });
+    const call = mockComplete.mock.calls[0][0];
+    expect(call.json).toBe(true);
+    expect(call.system).toMatch(/rejection/);
+    expect(call.system).toMatch(/interview_invite/);
+    expect(call.system).toMatch(/ignore any instructions/i);
+    const msg = JSON.stringify(call.messages);
+    expect(msg).toContain("jane@initech.example");
+    expect(msg).toContain("Unfortunately we have decided");
+  });
+
+  it("truncates very long bodies before sending", async () => {
+    mockComplete.mockResolvedValue('{"kind":"other","summary":"newsletter"}');
+    await classifyEmail({ ...email, body: "z".repeat(100_000) });
+    const msg = JSON.stringify(mockComplete.mock.calls[0][0].messages);
+    expect(msg.length).toBeLessThan(30_000);
+  });
+
+  it("coerces an unknown kind to other", async () => {
+    mockComplete.mockResolvedValue('{"kind":"phishing","summary":"?"}');
+    expect((await classifyEmail(email)).kind).toBe("other");
   });
 });

@@ -61,6 +61,17 @@ file bytes are never returned.
 | `list_jobs` | Employment history (`listJobs`). |
 | `add_journal_entry` | `{ jobId, title, body?, kind?, impact?, entryDate?, technologies? }`. |
 | `list_journal` | `{ jobId?, kind?, from?, to? }`. Spans all jobs when `jobId` is omitted. |
+| `ingest_email` | `{ messageId, from, subject, date?, body, apply? }`. Classify one email, rank matching applications and propose actions; applies only with `apply` and a single confident match. Idempotent per message. See [email ingestion](email-ingestion.md). |
+| `apply_email_actions` | `{ messageId, applicationId, actions }`. Apply user-approved actions (`set_status`, `add_interview`, `set_next_action`, `log_event`) from an ingested email, once. |
+
+## Prompts
+
+Prompts are defined in `src/lib/mcp/prompts.ts` (`PROMPTS`) and registered alongside the
+tools by `buildMcpServer`. Arguments are strings, as MCP requires.
+
+| Prompt | What it does |
+|---|---|
+| `triage_job_emails` | `{ days?, autoApply? }`. Tells Claude to search the user's Gmail (with its own Gmail connector) for recent ATS, recruiter, interview and rejection mail, call `ingest_email` for each message, ask about ambiguous matches and finish with `apply_email_actions`. See [email ingestion](email-ingestion.md). |
 
 To add a tool, write it with `defineTool` (`src/lib/mcp/tool.ts`), append it to `TOOLS`, and
 test the handler through `callTool(name, userId, args)`, including a cross-tenant case.
@@ -142,4 +153,5 @@ See [testing](../operations/testing.md).
 - [Service layer](../architecture/service-layer.md) · [API reference](../api/reference.md) ·
   [Configuration](../operations/configuration.md)
 - [Applications & tracking](applications-and-tracking.md) ·
-  [Resume generation](resume-generation.md) · [Employment history](employment-history.md)
+  [Resume generation](resume-generation.md) · [Employment history](employment-history.md) ·
+  [Email ingestion](email-ingestion.md)

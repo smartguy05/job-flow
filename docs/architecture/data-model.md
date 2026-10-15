@@ -31,7 +31,7 @@ from, and the [API reference](../api/reference.md) for per-route behavior.
 | `offer_comparisons` | `id` identity | Saved offer comparisons. `application_ids` is a JSON `number[]` (not a FK — the snapshot must survive edits/deletes); `result_json` snapshots the deterministic table + AI verdict; optional `title`/`priorities`. |
 | `interview_questions` | `id` identity | Questions the user asks interviewers. `application_id` NULL = general (applies to every job); otherwise specific to that application (`ON DELETE CASCADE`). `text`, `sort_order`. Index `(user_id, application_id)`. |
 | `application_question_state` | `id` identity | Per-job check state + notes for a question. `application_id` + `question_id` (both `ON DELETE CASCADE`), `checked_at` (null = unchecked), `notes`, `updated_at`. Unique `(application_id, question_id)`; no row = unchecked, no notes. See [interview questions](../features/interview-questions.md). |
-| `events` | `id` identity | Activity log (timeline + analytics). |
+| `events` | `id` identity | Activity log (timeline + analytics). `type` is free text; `email` events come from [email ingestion](../features/email-ingestion.md). |
 | `message_drafts` | `id` identity | Reply/cover-letter/follow-up drafts. |
 | `career_profile` | `userId` PK | One master career-info markdown per user. |
 | `career_files` | `id` identity | Supplementary source docs (many per user). |
@@ -40,6 +40,7 @@ from, and the [API reference](../api/reference.md) for per-route behavior.
 | `job_compensation` | `id` identity | Comp timeline per job (`ON DELETE CASCADE`): `kind` (`start`\|`raise`\|`promotion`\|`adjustment`\|`bonus_payout`\|`equity_grant`), `effective_date`, `base_amount`, `currency`, `period`, `title`, `bonus`, `equity`, `notes`. |
 | `job_benefits` | `job_id` PK | One benefits row per job: `health`, `retirement`, `pto_days`, `parental_leave`, `remote_policy`, `other`. |
 | `inventions` | `id` identity | Prior inventions / original works of authorship ("Exhibit A"): `title`, `description` (NOT NULL, default `''`), free-text `invention_date`, `identifier`, `kind` (`software`\|`invention`\|`authorship`\|`other`), `technologies` (JSON `string[]`), `include_in_resume` (boolean, default false), private `notes`, `sort_order`. Index `(user_id, sort_order)`. See [prior inventions](../features/prior-inventions.md). |
+| `ingested_emails` | `id` identity | Emails handed over through the MCP `ingest_email` tool (see [email ingestion](../features/email-ingestion.md)). `message_id` (provider id), `kind` (`rejection`\|`interview_invite`\|`recruiter_reply`\|`offer`\|`application_ack`\|`other`), `summary`, `from_address`, `subject`, `received_at`, `processed_at`, `applied_at` (null = proposed only), `actions` (JSON of the applied actions), `application_id` (nullable, `ON DELETE SET NULL`). Unique `(user_id, message_id)` makes ingest idempotent; `applied_at` is claimed atomically so a message is applied once. The body is never stored. Index `(user_id, processed_at)`. |
 | `journal_entries` | `id` identity | Work journal per job (`ON DELETE CASCADE`): `kind` (`achievement`\|`feedback`\|`complaint`\|`note`), `entry_date`, `title`, `body`, `impact`, `technologies` (JSON `string[]`), `synced_at` (null = pending profile sync). |
 
 Integer PKs use `GENERATED ALWAYS AS IDENTITY`. Timestamps are `timestamptz` with a
@@ -58,6 +59,8 @@ JS-side default (`$defaultFn(() => new Date())`).
 - `jobs.applicationId → applications.id` (nullable, `ON DELETE SET NULL`) — deleting the
   application keeps the job. `job_compensation` / `job_benefits` / `journal_entries . jobId →
   jobs.id` (`ON DELETE CASCADE`).
+- `ingested_emails.applicationId → applications.id` (nullable, `ON DELETE SET NULL`), so the
+  record of a processed message (and its idempotency key) survives deleting the application.
 - `offer_comparisons` carries only `userId → users.id` (`ON DELETE CASCADE`); it references
   applications by id inside `application_ids`/`result_json` rather than by FK, so a saved
   comparison remains intact if an included application is later changed or deleted.
@@ -92,5 +95,5 @@ affected feature/API docs in the same change.
 
 ## Related
 
-- [Database layer](database.md) · [OIDC flow](../auth/oidc-flow.md) ·
+- [Database layer](database.md) · [Email ingestion](../features/email-ingestion.md) · [OIDC flow](../auth/oidc-flow.md) ·
   [Resume generation](../features/resume-generation.md) · [API reference](../api/reference.md)

@@ -25,7 +25,7 @@ describe("buildMcpServer", () => {
       expect.arrayContaining([
         "capture_job", "list_applications", "get_application", "update_application", "add_interview",
         "update_interview", "needs_attention", "generate_resume", "draft_message", "list_jobs",
-        "add_journal_entry", "list_journal",
+        "add_journal_entry", "list_journal", "ingest_email", "apply_email_actions",
       ]),
     );
     for (const t of tools) {
@@ -58,5 +58,18 @@ describe("buildMcpServer", () => {
     const client = await connect(globalThis.__testUserId);
     const res = await client.callTool({ name: "get_application", arguments: { id: "abc" } });
     expect(res.isError).toBe(true);
+  });
+
+  it("exposes the triage_job_emails prompt", async () => {
+    const client = await connect(globalThis.__testUserId);
+    const { prompts } = await client.listPrompts();
+    expect(prompts.map((p) => p.name)).toContain("triage_job_emails");
+    const triage = prompts.find((p) => p.name === "triage_job_emails")!;
+    expect(triage.description).toBeTruthy();
+    const res = await client.getPrompt({ name: "triage_job_emails", arguments: { days: "3" } });
+    const body = (res.messages[0].content as { type: string; text: string }).text;
+    expect(body).toContain("newer_than:3d");
+    expect(body).toContain("ingest_email");
+    expect(body).toContain("apply_email_actions");
   });
 });

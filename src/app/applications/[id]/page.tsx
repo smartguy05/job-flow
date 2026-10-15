@@ -257,7 +257,7 @@ export default function ApplicationDetail() {
             <div className="flex flex-col gap-3">
               {d.events.map((e) => (
                 <div key={e.id} className="text-sm flex gap-2">
-                  <span style={{ color: "var(--accent)" }}>•</span>
+                  <span style={{ color: "var(--accent)" }}>{e.type === "email" ? "✉" : "•"}</span>
                   <div>
                     <div>{e.detail || e.type}</div>
                     <div className="text-xs" style={{ color: "var(--muted)" }}>{fmtRelative(e.createdAt)}</div>
