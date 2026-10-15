@@ -104,4 +104,28 @@ describe("GET /api/calendar", () => {
     expect(reviews[0]).toMatchObject({ jobId: mine.id, sourceId: mine.id, company: "Mine Co", title: "Performance review" });
     expect(reviews[0].date.slice(0, 10)).toBe("2026-11-02");
   });
+
+  it("adds the next vest of each grant still vesting, scoped to the user", async () => {
+    const uid = globalThis.__testUserId;
+    const [job] = await db
+      .insert(schema.jobs)
+      .values({ userId: uid, company: "Vest Co", companyNormalized: "vest", title: "Engineer" })
+      .returning();
+    const [g] = await db
+      .insert(schema.equityGrants)
+      .values({ userId: uid, jobId: job.id, type: "ISO", vestStart: "2090-01-15", shares: 1200, cliffMonths: 0, vestMonths: 12, frequency: "monthly" })
+      .returning();
+    // Fully vested long ago: no event.
+    await db.insert(schema.equityGrants).values({ userId: uid, jobId: job.id, vestStart: "2000-01-01", shares: 10, cliffMonths: 0, vestMonths: 12 });
+    const other = await seedUser("calendar-vest-other");
+    const [theirJob] = await db
+      .insert(schema.jobs)
+      .values({ userId: other.id, company: "Their Vest Co", companyNormalized: "their vest", title: "Engineer" })
+      .returning();
+    await db.insert(schema.equityGrants).values({ userId: other.id, jobId: theirJob.id, vestStart: "2090-01-15", shares: 1200 });
+    const vests = (await fetchEvents()).filter((e) => e.type === "vest");
+    expect(vests).toHaveLength(1);
+    expect(vests[0]).toMatchObject({ jobId: job.id, sourceId: g.id, company: "Vest Co", title: "Vest: 100 shares (ISO)" });
+    expect(vests[0].date.slice(0, 10)).toBe("2090-02-15");
+  });
 });

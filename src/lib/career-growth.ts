@@ -1,4 +1,6 @@
 import { parseBody, type Body, type Parsed } from "@/lib/job-input";
+import { EQUITY_TYPES, VEST_FREQUENCIES } from "@/lib/vesting";
+import { PTO_KINDS, businessDays } from "@/lib/pto";
 
 // Career growth after the hire: people around a job (with manager history), 1:1s,
 // performance reviews and goals. Pure helpers: request parsing, checklist JSON and the
@@ -125,4 +127,75 @@ export function currentManager(people: PersonLike[], fallback: string | null, to
     (p) => (!p.startDate || p.startDate <= today) && (!p.endDate || p.endDate >= today),
   );
   return active.length ? active[active.length - 1].name : fallback;
+}
+
+// --- Equity grants and PTO (post-hire, part 2) ---
+
+const nonNegative = (r: Parsed, keys: string[]): Parsed => {
+  for (const k of keys) {
+    const v = r.values[k];
+    if (typeof v === "number" && v < 0) return { values: r.values, error: `${k} must be 0 or more` };
+  }
+  return r;
+};
+
+export function equityInput(body: Body, opts: { create?: boolean } = {}): Parsed {
+  const r = parseBody(
+    body,
+    {
+      enums: { type: EQUITY_TYPES, frequency: VEST_FREQUENCIES },
+      dates: ["grantDate", "vestStart"],
+      ints: ["shares", "cliffMonths", "vestMonths"],
+      nums: ["strikePrice"],
+      text: ["notes"],
+    },
+    false,
+  );
+  if (r.error) return r;
+  if (opts.create && body.shares === undefined) return { values: r.values, error: "shares required" };
+  if ("shares" in r.values && !((r.values.shares as number | null) && (r.values.shares as number) > 0)) {
+    return { values: r.values, error: "shares must be greater than 0" };
+  }
+  // NOT NULL columns with defaults: blank means "leave as is" (or the default on create).
+  for (const k of ["cliffMonths", "vestMonths"]) if (r.values[k] === null) delete r.values[k];
+  return nonNegative(r, ["cliffMonths", "vestMonths", "strikePrice"]);
+}
+
+type GrantMonths = { cliffMonths: number; vestMonths: number };
+const GRANT_DEFAULTS: GrantMonths = { cliffMonths: 12, vestMonths: 48 };
+
+// Cross-field check on the row as it will be stored (new values over the existing row, or
+// over the column defaults on create).
+export function finalizeGrant(values: Record<string, unknown>, existing: GrantMonths | null): Parsed {
+  const merged = { ...(existing ?? GRANT_DEFAULTS), ...values } as GrantMonths;
+  if (merged.cliffMonths > merged.vestMonths) return { values, error: "cliffMonths can't exceed vestMonths" };
+  return { values };
+}
+
+export function ptoInput(body: Body, opts: { create?: boolean } = {}): Parsed {
+  const r = parseBody(
+    body,
+    { dates: ["startDate", "endDate"], enums: { kind: PTO_KINDS }, nums: ["days"], text: ["note"] },
+    false,
+  );
+  if (r.error) return r;
+  if ((opts.create || body.startDate !== undefined) && !r.values.startDate) return { values: r.values, error: "startDate required" };
+  if (r.values.days === null) delete r.values.days;
+  return nonNegative(r, ["days"]);
+}
+
+type PtoRange = { startDate: string; endDate: string; days: number };
+
+// Fill derived fields: endDate defaults to startDate; days default to the weekdays in the
+// range, recomputed when the range changes and no explicit days were sent.
+export function finalizePto(values: Record<string, unknown>, existing: PtoRange | null): Parsed {
+  const out = { ...values };
+  if (!existing && !out.endDate) out.endDate = out.startDate;
+  if (out.endDate === null && existing) out.endDate = (out.startDate as string | undefined) ?? existing.startDate;
+  const start = (out.startDate as string | undefined) ?? existing?.startDate;
+  const end = (out.endDate as string | undefined) ?? existing?.endDate;
+  if (start && end && end < start) return { values, error: "endDate can't be before startDate" };
+  const rangeChanged = !existing || out.startDate !== undefined || out.endDate !== undefined;
+  if (out.days === undefined && rangeChanged && start && end) out.days = businessDays(start, end);
+  return { values: out };
 }

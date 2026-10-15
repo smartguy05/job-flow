@@ -54,6 +54,7 @@ JobFlow is a self-hosted, multi-user job-application tracker and tailored-resume
 | Resume service | `src/lib/resume-service.ts` | 2-page fit loop, persistence. |
 | Services | `src/lib/services/*.ts` | User-scoped domain operations shared by routes and MCP tools. See [service layer](service-layer.md). |
 | Career growth | `src/lib/{career-growth,brag-doc,growth-routes}.ts` | People/1:1/review/goal parsing and manager history, the pure brag doc (Markdown/DOCX), and shared `/api/jobs/[id]/*` handlers. See [career growth](../features/career-growth.md). |
+| Equity, PTO, job documents | `src/lib/{vesting,pto,job-files}.ts` | Pure vesting schedule math, PTO balance and weekday counts, and job-document upload rules. |
 | Settings | `src/lib/settings.ts` | Per-user key/value settings. |
 | Events/dedup/ntfy | `src/lib/{events,dedup,ntfy}.ts` | Activity log, duplicate detection, push. |
 | Startup | `src/instrumentation.ts` | Runs migrations once at server boot. |

@@ -2,18 +2,18 @@
 // (`src/app/api/calendar/route.ts`) produces `CalendarEvent[]`; the page
 // (`src/app/calendar/page.tsx`) lays them out with the grid/grouping helpers here.
 
-export type CalendarEventType = "interview" | "deadline" | "next_action" | "review";
+export type CalendarEventType = "interview" | "deadline" | "next_action" | "review" | "vest";
 
 export type CalendarEvent = {
   type: CalendarEventType;
   date: string; // ISO timestamp
-  // Application events carry applicationId; `review` events (a held job's next performance
-  // review) carry jobId instead.
+  // Application events carry applicationId; job events (`review`: a held job's next
+  // performance review; `vest`: an equity grant's next vest) carry jobId instead.
   applicationId?: number;
   jobId?: number;
   // Stable per-event id for building calendar UIDs. Interviews use the interview row id
   // (an application can have several); reviews use the job id; deadlines/next-actions are
-  // one-per-application, so this is left undefined and UID generation falls back to
+  // one-per-application, so this is left undefined (vests use the grant id) and UID generation falls back to
   // applicationId.
   sourceId?: number;
   company: string | null;
@@ -70,14 +70,17 @@ export function eventsByDay(events: CalendarEvent[]): Map<string, CalendarEvent[
   return map;
 }
 
-// In-app link for an event: the job page for reviews, else the application.
+// In-app link for an event: the job page for reviews (its Equity tab for vests), else the
+// application.
 export function eventHref(ev: CalendarEvent): string {
-  return ev.jobId != null ? `/jobs/${ev.jobId}` : `/applications/${ev.applicationId}`;
+  if (ev.jobId != null) return `/jobs/${ev.jobId}${ev.type === "vest" ? "#equity" : ""}`;
+  return `/applications/${ev.applicationId}`;
 }
 
 // Color palette aligned with `statusColor` in src/lib/ui.ts.
 export function eventColor(ev: CalendarEvent): { bg: string; fg: string } {
   if (ev.type === "review") return { bg: "#ede9fe", fg: "#5b21b6" }; // violet
+  if (ev.type === "vest") return { bg: "#ccfbf1", fg: "#115e59" }; // teal
   if (ev.type === "deadline") return { bg: "#fee2e2", fg: "#991b1b" }; // red
   if (ev.type === "next_action") return { bg: "#fef3c7", fg: "#92400e" }; // amber
   // interview — color by outcome
@@ -98,6 +101,7 @@ export const EVENT_TYPE_LABELS: Record<CalendarEventType, string> = {
   deadline: "Deadline",
   next_action: "Next action",
   review: "Review",
+  vest: "Vest",
 };
 
 // ---------------------------------------------------------------------------
@@ -164,6 +168,7 @@ const ICS_SUMMARY_PREFIX: Record<CalendarEventType, string> = {
   deadline: "Deadline",
   next_action: "Next action",
   review: "Review",
+  vest: "Vest",
 };
 
 function icsSummary(ev: CalendarEvent): string {

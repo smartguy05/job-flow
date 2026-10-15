@@ -67,6 +67,8 @@ file bytes are never returned.
 | `add_review` | `{ jobId, cycle, periodStart?, periodEnd?, rating?, reviewer?, summary?, strengths?, growthAreas?, outcome? }`. Record a performance review. |
 | `update_goal` | `{ jobId, goalId?, title?, description?, period?, status?, progress?, keyResults? }`. With `goalId`, updates that goal. Without it, creates a goal and needs `title`. |
 | `get_brag_doc` | `{ jobId, from?, to? }`. The brag doc as `{ doc, markdown }`, never including complaints, notes, 1:1s or pay. |
+| `log_pto` | `{ jobId, startDate, endDate?, days?, kind?, note? }`. Log time off; returns the entry and that year's balance. See [career growth](career-growth.md#pto). |
+| `get_equity_summary` | `{ jobId?, asOf? }`. Vested/unvested shares, next vest and full-vest date per grant and in total, across all jobs or one. Notes are left out. |
 | `apply_email_actions` | `{ messageId, applicationId, actions }`. Apply user-approved actions (`set_status`, `add_interview`, `set_next_action`, `log_event`) from an ingested email, once. |
 
 ## Prompts
@@ -153,7 +155,7 @@ See [testing](../operations/testing.md).
 
 ## Related
 
-- [Career growth](career-growth.md) (1:1s, reviews, goals, brag doc tools)
+- [Career growth](career-growth.md) (1:1s, reviews, goals, brag doc, PTO and equity tools)
 
 - [Authentik setup](../auth/authentik-setup.md) · [OIDC flow](../auth/oidc-flow.md) ·
   [Sessions & middleware](../auth/sessions-and-middleware.md)

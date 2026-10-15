@@ -204,6 +204,7 @@ function Legend() {
     { type: "deadline", label: "Deadline" },
     { type: "next_action", label: "Next action" },
     { type: "review", label: "Review" },
+    { type: "vest", label: "Vest" },
   ];
   return (
     <div className="flex flex-wrap gap-3 text-sm" style={{ color: "var(--muted)" }}>

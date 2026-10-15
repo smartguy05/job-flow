@@ -249,3 +249,23 @@ describe("review events", () => {
     expect(ics).toContain("https://jobflow.test/jobs/12");
   });
 });
+
+describe("vest events", () => {
+  const vest = (over: Partial<CalendarEvent> = {}) =>
+    ev({ type: "vest", applicationId: undefined, jobId: 12, sourceId: 7, title: "Vest: 100 shares (RSU)", status: "current", date: "2026-11-15T12:00:00.000Z", ...over });
+
+  it("has a label, its own color, and links to the job's equity tab", () => {
+    expect(EVENT_TYPE_LABELS.vest).toBe("Vest");
+    const c = eventColor(vest());
+    for (const t of ["deadline", "next_action", "review"] as const) expect(c).not.toEqual(eventColor(ev({ type: t })));
+    expect(eventHref(vest())).toBe("/jobs/12#equity");
+  });
+
+  it("serializes as an all-day VEVENT keyed by the grant", () => {
+    const ics = toICS([vest()], { dtstamp: "2026-07-06T12:00:00.000Z", baseUrl: "https://jobflow.test" });
+    expect(ics).toContain("UID:vest-7@jobflow");
+    expect(ics).toContain("DTSTART;VALUE=DATE:20261115");
+    expect(ics).toContain("SUMMARY:Vest: Globex — Vest: 100 shares (RSU)");
+    expect(ics).toContain("https://jobflow.test/jobs/12#equity");
+  });
+});

@@ -97,7 +97,7 @@ describe("POST /api/jobs/profile-sync", () => {
     const res = await POST(req("/api/jobs/profile-sync", "POST", {}));
     expect(res.status).toBe(500);
   });
-  it("never sends people notes, 1:1s, reviews or goals from career growth", async () => {
+  it("never sends people notes, 1:1s, reviews, goals, equity, PTO or job files", async () => {
     const job = await seedJob();
     const uid = globalThis.__testUserId;
     await db.insert(schema.journalEntries).values({ userId: uid, jobId: job.id, kind: "achievement", title: "Shipped search" });
@@ -109,10 +109,13 @@ describe("POST /api/jobs/profile-sync", () => {
     await db.insert(schema.performanceReviews).values({ userId: uid, jobId: job.id, cycle: "H1", outcome: "PRIVATE-OUTCOME +12%" });
     await db.insert(schema.goals).values({ userId: uid, jobId: job.id, title: "PRIVATE-GOAL" });
     await db.insert(schema.jobBenefits).values({ userId: uid, jobId: job.id, ptoDays: 27, other: "PRIVATE-PTO" });
+    await db.insert(schema.equityGrants).values({ userId: uid, jobId: job.id, shares: 777333, notes: "PRIVATE-GRANT" });
+    await db.insert(schema.ptoEntries).values({ userId: uid, jobId: job.id, startDate: "2026-03-09", endDate: "2026-03-09", days: 1, note: "PRIVATE-PTO-ENTRY" });
+    await db.insert(schema.jobFiles).values({ userId: uid, jobId: job.id, name: "PRIVATE-FILE.pdf", mimeType: "application/pdf", size: 3, data: Buffer.from("PRIVATE-FILE-BYTES") });
     expect((await POST(req("/api/jobs/profile-sync", "POST", {}))).status).toBe(200);
     const sent = JSON.stringify(mockAssist.mock.calls[0][0]);
     expect(sent).toContain("Shipped search");
-    for (const s of ["PRIVATE-PERSON", "PRIVATE-1ON1", "PRIVATE-ACTION", "PRIVATE-OUTCOME", "PRIVATE-GOAL", "PRIVATE-PTO"]) {
+    for (const s of ["PRIVATE-PERSON", "PRIVATE-1ON1", "PRIVATE-ACTION", "PRIVATE-OUTCOME", "PRIVATE-GOAL", "PRIVATE-PTO", "777333", "PRIVATE-GRANT", "PRIVATE-PTO-ENTRY", "PRIVATE-FILE"]) {
       expect(sent).not.toContain(s);
     }
   });

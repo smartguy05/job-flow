@@ -6,7 +6,7 @@ at `/calendar` (linked from the top nav in `src/app/layout.tsx`).
 
 ## What it shows
 
-Four event types, aggregated from existing tables:
+Five event types, aggregated from existing tables:
 
 | Type | Source | Title | Color |
 |---|---|---|---|
@@ -14,10 +14,12 @@ Four event types, aggregated from existing tables:
 | `deadline` | `applications.applicationDeadline` | "Application deadline" | red |
 | `next_action` | `applications.nextActionDate` | `applications.nextAction` (fallback "Next action") | amber |
 | `review` | `jobs.nextReviewDate` (see [career growth](career-growth.md#next-review-date)) | "Performance review" | violet |
+| `vest` | the next vest after today of each `equity_grants` row still vesting (computed by `nextVest()`; see [career growth](career-growth.md#equity-grants)) | "Vest: N shares (TYPE)" | teal |
 
-Review events carry `jobId` (and `sourceId` = job id) instead of `applicationId`. They are
-dated at midday UTC so the day stays stable. `eventHref()` links them to `/jobs/[id]`, and
-every other event to `/applications/[id]`.
+Review and vest events carry `jobId` instead of `applicationId` (`sourceId` is the job id for
+reviews and the grant id for vests, so `.ics` UIDs are `review-<jobId>` / `vest-<grantId>`).
+They are dated at midday UTC so the day stays stable. `eventHref()` links reviews to
+`/jobs/[id]`, vests to `/jobs/[id]#equity`, and every other event to `/applications/[id]`.
 
 Interviews with no `scheduledAt` are omitted (they have no place on a calendar).
 
@@ -32,7 +34,7 @@ Interviews with no `scheduledAt` are omitted (they have no place on a calendar).
 - **Agenda** — below the grid, the selected day's events (or, when that day is empty, the next
   10 upcoming events). Each row links to `/applications/[id]`, where interviews are managed, or, for a review, to
   `/jobs/[id]`.
-- **Legend** — maps colors to the four event types.
+- **Legend** — maps colors to the five event types.
 
 The view is **read-only**: there is no scheduling/editing UI on the calendar. Interviews are
 created and edited on the [application detail page](applications-and-tracking.md) via the
@@ -69,7 +71,7 @@ from Google, Apple, or Outlook Calendar, kept in sync as applications change.
   `EVENT_TYPE_LABELS`, and the iCalendar serializers (`toICS`, `escapeICSText`,
   `formatICSDate`, `foldICSLine`, `eventUID`).
 - `src/lib/calendar-data.ts` — DB-backed helpers shared by the JSON route and the feed:
-  `getCalendarEvents(userId)` (four parallel `userId`-scoped queries) plus the feed
+  `getCalendarEvents(userId)` (five parallel `userId`-scoped queries) plus the feed
   token helpers (`getOrCreateCalendarToken`, `regenerateCalendarToken`,
   `findUserIdByCalendarToken`).
 - `src/app/api/calendar/route.ts` — `GET /api/calendar`; auth-scoped, returns the merged

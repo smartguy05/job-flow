@@ -59,6 +59,9 @@ export const JOB_TABS = [
   ["people", "People & 1:1s"],
   ["reviews", "Reviews & Goals"],
   ["journal", "Journal"],
+  ["equity", "Equity"],
+  ["pto", "PTO"],
+  ["documents", "Documents"],
 ] as const;
 export type JobTab = (typeof JOB_TABS)[number][0];
 
@@ -80,4 +83,29 @@ export function textToChecklist(text: string): ChecklistItem[] {
     .map((l) => l.trim())
     .filter(Boolean)
     .map((l) => (/^\[x\]\s*/i.test(l) ? { text: l.replace(/^\[x\]\s*/i, ""), done: true } : { text: l, done: false }));
+}
+
+export const PTO_KIND_LABELS: Record<string, string> = {
+  vacation: "Vacation",
+  sick: "Sick",
+  holiday: "Holiday",
+  other: "Other",
+};
+
+export const VEST_FREQUENCY_LABELS: Record<string, string> = {
+  monthly: "Monthly",
+  quarterly: "Quarterly",
+  annual: "Annual",
+};
+
+export const JOB_FILE_KIND_LABELS: Record<string, string> = {
+  offer_letter: "Offer letter",
+  handbook: "Handbook",
+  contract: "Contract",
+  review: "Review",
+  misc: "Misc",
+};
+
+export function formatShares(n: number | null | undefined): string {
+  return n == null ? "—" : n.toLocaleString("en-US");
 }

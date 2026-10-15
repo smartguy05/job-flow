@@ -55,6 +55,8 @@ employment-history tables `jobs`, `job_compensation`, `job_benefits` and `journa
 `0009_happy_black_knight.sql` creates `job_people`, `one_on_ones`, `performance_reviews` and
 `goals`, and adds `jobs.next_review_date` / `jobs.review_reminded_for` (see
 [career growth](../features/career-growth.md)).
+`0010_uneven_ezekiel_stane.sql` creates `equity_grants`, `pto_entries` and `job_files` (see
+[career growth](../features/career-growth.md#equity-grants)).
 
 ### Migration parity
 

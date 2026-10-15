@@ -7,6 +7,7 @@ import { addJournalEntryTool, listJobsTool, listJournalTool } from "./tools/jobs
 import { applyEmailActionsTool, ingestEmailTool } from "./tools/emails";
 import { getAnalyticsTool } from "./tools/analytics";
 import { addReviewTool, getBragDocTool, logOneOnOneTool, updateGoalTool } from "./tools/career-growth";
+import { getEquitySummaryTool, logPtoTool } from "./tools/equity-pto";
 
 // Every MCP tool JobFlow exposes. Later features append their tools here.
 export const TOOLS: McpTool[] = [
@@ -29,6 +30,8 @@ export const TOOLS: McpTool[] = [
   addReviewTool,
   updateGoalTool,
   getBragDocTool,
+  logPtoTool,
+  getEquitySummaryTool,
 ];
 
 export function getTool(name: string): McpTool {

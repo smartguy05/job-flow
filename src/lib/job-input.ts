@@ -15,10 +15,15 @@ function text(v: unknown): string | null {
   return s === "" ? null : s;
 }
 
-function int(v: unknown): number | null | "invalid" {
+function num(v: unknown): number | null | "invalid" {
   if (v == null || v === "") return null;
   const n = typeof v === "number" ? v : Number(String(v).replace(/[,\s$]/g, ""));
-  return Number.isFinite(n) ? Math.round(n) : "invalid";
+  return Number.isFinite(n) ? n : "invalid";
+}
+
+function int(v: unknown): number | null | "invalid" {
+  const n = num(v);
+  return typeof n === "number" ? Math.round(n) : n;
 }
 
 export function parseBody(
@@ -28,6 +33,7 @@ export function parseBody(
     required?: string[];
     dates?: string[];
     ints?: string[];
+    nums?: string[]; // decimals kept (e.g. 0.5 days, $2.15 strike)
     enums?: Record<string, readonly string[]>;
     bools?: string[];
     tech?: boolean;
@@ -52,6 +58,12 @@ export function parseBody(
   for (const k of spec.ints ?? []) {
     if (body[k] === undefined) continue;
     const v = int(body[k]);
+    if (v === "invalid") return { values, error: `${k} must be a number` };
+    values[k] = v;
+  }
+  for (const k of spec.nums ?? []) {
+    if (body[k] === undefined) continue;
+    const v = num(body[k]);
     if (v === "invalid") return { values, error: `${k} must be a number` };
     values[k] = v;
   }

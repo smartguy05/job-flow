@@ -2,16 +2,19 @@ import { db, schema } from "@/db";
 import { and, eq, isNotNull } from "drizzle-orm";
 import { randomToken } from "@/lib/auth/oidc";
 import type { CalendarEvent } from "@/lib/calendar";
+import { nextVest } from "@/lib/vesting";
+import { todayISO } from "@/lib/jobs";
 
 // DB-backed calendar helpers shared by the in-app JSON route (`/api/calendar`) and the
 // token-authed `.ics` feed (`/api/calendar/feed`). Kept out of `src/lib/calendar.ts`,
 // which is intentionally DB-free.
 
 // Aggregate every dated item across a user's applications into a flat CalendarEvent list:
-// scheduled interviews, application deadlines, next-action dates, and the next performance
-// review of each job. All queries are scoped by userId.
+// scheduled interviews, application deadlines, next-action dates, the next performance
+// review of each job, and the next vest of each equity grant still vesting. All queries are
+// scoped by userId.
 export async function getCalendarEvents(userId: string): Promise<CalendarEvent[]> {
-  const [interviews, deadlines, nextActions, reviews] = await Promise.all([
+  const [interviews, deadlines, nextActions, reviews, grants] = await Promise.all([
     db
       .select({
         id: schema.interviews.id,
@@ -56,7 +59,29 @@ export async function getCalendarEvents(userId: string): Promise<CalendarEvent[]
       })
       .from(schema.jobs)
       .where(and(eq(schema.jobs.userId, userId), isNotNull(schema.jobs.nextReviewDate))),
+    db
+      .select({
+        id: schema.equityGrants.id,
+        jobId: schema.equityGrants.jobId,
+        type: schema.equityGrants.type,
+        grantDate: schema.equityGrants.grantDate,
+        vestStart: schema.equityGrants.vestStart,
+        shares: schema.equityGrants.shares,
+        cliffMonths: schema.equityGrants.cliffMonths,
+        vestMonths: schema.equityGrants.vestMonths,
+        frequency: schema.equityGrants.frequency,
+        company: schema.jobs.company,
+        title: schema.jobs.title,
+      })
+      .from(schema.equityGrants)
+      .innerJoin(schema.jobs, and(eq(schema.equityGrants.jobId, schema.jobs.id), eq(schema.jobs.userId, userId)))
+      .where(eq(schema.equityGrants.userId, userId)),
   ]);
+  const today = todayISO();
+  const vests = grants.flatMap((g) => {
+    const next = nextVest(g, today);
+    return next ? [{ ...g, next }] : [];
+  });
 
   return [
     ...interviews.map((r) => ({
@@ -97,6 +122,16 @@ export async function getCalendarEvents(userId: string): Promise<CalendarEvent[]
       company: r.company,
       roleTitle: r.title,
       title: "Performance review",
+      status: "current",
+    })),
+    ...vests.map((g) => ({
+      type: "vest" as const,
+      date: `${g.next.date}T12:00:00.000Z`,
+      jobId: g.jobId,
+      sourceId: g.id,
+      company: g.company,
+      roleTitle: g.title,
+      title: `Vest: ${g.next.shares.toLocaleString("en-US")} shares (${g.type})`,
       status: "current",
     })),
   ];

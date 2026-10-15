@@ -135,6 +135,11 @@ describe("brag doc + self-review", () => {
     });
     await createItem("goals", uid(), jobId, { title: "Ship billing", status: "done" });
     await db.update(schema.jobs).set({ notes: "PRIVATE-JOB-NOTE", reasonForLeaving: "PRIVATE-REASON" }).where(eq(schema.jobs.id, jobId));
+    await createItem("equity", uid(), jobId, { type: "ISO", shares: 777333, strikePrice: 4.56, notes: "PRIVATE-GRANT" });
+    await createItem("pto", uid(), jobId, { startDate: "2026-03-09", note: "PRIVATE-PTO-ENTRY" });
+    await db.insert(schema.jobFiles).values({
+      userId: uid(), jobId, kind: "offer_letter", name: "PRIVATE-FILE.pdf", mimeType: "application/pdf", size: 15, data: Buffer.from("PRIVATE-FILE-BYTES"),
+    });
   }
   const SECRETS = [
     "PRIVATE-COMPLAINT",
@@ -149,6 +154,10 @@ describe("brag doc + self-review", () => {
     "PRIVATE-OUTCOME",
     "PRIVATE-JOB-NOTE",
     "PRIVATE-REASON",
+    "777333",
+    "PRIVATE-GRANT",
+    "PRIVATE-PTO-ENTRY",
+    "PRIVATE-FILE",
   ];
 
   it("getBragDoc returns the structured doc and markdown without private data", async () => {

@@ -10,6 +10,7 @@ import {
   customType,
   date,
   boolean,
+  doublePrecision,
 } from "drizzle-orm/pg-core";
 
 const now = () => new Date();
@@ -556,6 +557,81 @@ export const goals = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().$defaultFn(now),
   },
   (t) => [index("goals_user_job_idx").on(t.userId, t.jobId)],
+);
+
+// --- Post-hire, part 2: equity grants, PTO, job documents ---
+
+// Equity grants for a job. The vesting schedule is derived (src/lib/vesting.ts), never stored.
+// Private: never sent to the LLM or the profile sync.
+export const equityGrants = pgTable(
+  "equity_grants",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    jobId: integer("job_id")
+      .notNull()
+      .references(() => jobs.id, { onDelete: "cascade" }),
+    type: text("type").notNull().default("RSU"), // RSU | ISO | NSO | ESPP | other
+    grantDate: date("grant_date", { mode: "string" }),
+    shares: integer("shares").notNull(),
+    strikePrice: doublePrecision("strike_price"), // per share, options only
+    vestStart: date("vest_start", { mode: "string" }), // null = grantDate
+    cliffMonths: integer("cliff_months").notNull().default(12),
+    vestMonths: integer("vest_months").notNull().default(48),
+    frequency: text("frequency").notNull().default("monthly"), // monthly | quarterly | annual
+    notes: text("notes"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().$defaultFn(now),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().$defaultFn(now),
+  },
+  (t) => [index("equity_grants_user_job_idx").on(t.userId, t.jobId)],
+);
+
+// Time off taken or planned at a job. `days` defaults to the weekdays in the range; the
+// balance against job_benefits.pto_days is derived (src/lib/pto.ts). Private.
+export const ptoEntries = pgTable(
+  "pto_entries",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    jobId: integer("job_id")
+      .notNull()
+      .references(() => jobs.id, { onDelete: "cascade" }),
+    startDate: date("start_date", { mode: "string" }).notNull(),
+    endDate: date("end_date", { mode: "string" }).notNull(),
+    days: doublePrecision("days").notNull().default(0),
+    kind: text("kind").notNull().default("vacation"), // vacation | sick | holiday | other
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().$defaultFn(now),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().$defaultFn(now),
+  },
+  (t) => [index("pto_entries_user_job_idx").on(t.userId, t.jobId)],
+);
+
+// Documents kept against a job (offer letter, handbook, contract, review, misc): PDF or DOCX,
+// bytes in Postgres bytea like application_files. Store-and-download only; never sent to
+// the LLM.
+export const jobFiles = pgTable(
+  "job_files",
+  {
+    id: integer("id").primaryKey().generatedAlwaysAsIdentity(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    jobId: integer("job_id")
+      .notNull()
+      .references(() => jobs.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull().default("misc"), // offer_letter | handbook | contract | review | misc
+    name: text("name").notNull(),
+    mimeType: text("mime_type").notNull(),
+    size: integer("size").notNull(), // bytes
+    data: bytea("data").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().$defaultFn(now),
+  },
+  (t) => [index("job_files_user_job_idx").on(t.userId, t.jobId)],
 );
 
 // Prior inventions / original works of authorship — the "Exhibit A" a user attaches to an

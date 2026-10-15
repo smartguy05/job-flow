@@ -11,6 +11,10 @@ import {
   textToChecklist,
 } from "./job-labels";
 import { GOAL_STATUSES, PERSON_RELATIONSHIPS } from "./career-growth";
+import { JOB_FILE_KIND_LABELS, PTO_KIND_LABELS, VEST_FREQUENCY_LABELS, formatShares } from "./job-labels";
+import { JOB_FILE_KINDS } from "./job-files";
+import { PTO_KINDS } from "./pto";
+import { VEST_FREQUENCIES } from "./vesting";
 
 describe("job labels", () => {
   it("formats amounts by period", () => {
@@ -33,10 +37,22 @@ describe("job labels", () => {
     for (const r of PERSON_RELATIONSHIPS) expect(PERSON_RELATIONSHIP_LABELS[r]).toBeTruthy();
     for (const g of GOAL_STATUSES) expect(GOAL_STATUS_LABELS[g]).toBeTruthy();
   });
+  it("labels every PTO kind, vest frequency and job file kind", () => {
+    for (const k of PTO_KINDS) expect(PTO_KIND_LABELS[k]).toBeTruthy();
+    for (const f of VEST_FREQUENCIES) expect(VEST_FREQUENCY_LABELS[f]).toBeTruthy();
+    for (const k of JOB_FILE_KINDS) expect(JOB_FILE_KIND_LABELS[k]).toBeTruthy();
+  });
+  it("formats share counts", () => {
+    expect(formatShares(4800)).toBe("4,800");
+    expect(formatShares(null)).toBe("—");
+  });
   it("maps a URL hash to a known tab", () => {
     expect(jobTabFromHash("#people")).toBe("people");
     expect(jobTabFromHash("reviews")).toBe("reviews");
     expect(jobTabFromHash("#nope")).toBe("overview");
+    expect(jobTabFromHash("#equity")).toBe("equity");
+    expect(jobTabFromHash("#pto")).toBe("pto");
+    expect(jobTabFromHash("#documents")).toBe("documents");
     expect(jobTabFromHash("")).toBe("overview");
   });
   it("round-trips checklists through textarea text", () => {

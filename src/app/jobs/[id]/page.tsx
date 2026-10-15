@@ -10,8 +10,12 @@ import { PayTab } from "./_components/PayTab";
 import { PeopleTab } from "./_components/PeopleTab";
 import { ReviewsGoalsTab } from "./_components/ReviewsGoalsTab";
 import { JournalTab } from "./_components/JournalTab";
+import { EquityTab } from "./_components/EquityTab";
+import { PtoTab } from "./_components/PtoTab";
+import { DocumentsTab } from "./_components/DocumentsTab";
 
-// Job detail: a header plus tabs (Overview, Pay, People & 1:1s, Reviews & Goals, Journal).
+// Job detail: a header plus tabs (Overview, Pay, People & 1:1s, Reviews & Goals, Journal,
+// Equity, PTO, Documents).
 // Each tab is its own component under ./_components; the active tab lives in the URL hash.
 export default function JobPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -35,7 +39,7 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
   }
 
   async function delJob() {
-    if (!confirm("Delete this job and all its pay, benefits, people, 1:1s, reviews, goals and journal entries?")) return;
+    if (!confirm("Delete this job and all its pay, benefits, people, 1:1s, reviews, goals, journal entries, equity, PTO and documents?")) return;
     await api(`/api/jobs/${id}`, { method: "DELETE" });
     window.location.href = "/jobs";
   }
@@ -87,6 +91,9 @@ export default function JobPage({ params }: { params: Promise<{ id: string }> })
       {tab === "people" && <PeopleTab id={id} reload={load} />}
       {tab === "reviews" && <ReviewsGoalsTab id={id} comp={d.compSummary.steps} reload={load} />}
       {tab === "journal" && <JournalTab id={id} d={d} reload={load} />}
+      {tab === "equity" && <EquityTab id={id} reload={load} />}
+      {tab === "pto" && <PtoTab id={id} reload={load} />}
+      {tab === "documents" && <DocumentsTab id={id} />}
     </div>
   );
 }

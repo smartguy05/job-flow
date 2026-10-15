@@ -10,28 +10,38 @@ import {
   parseChecklist,
   personInput,
   reviewInput,
+  equityInput,
+  finalizeGrant,
+  finalizePto,
+  ptoInput,
 } from "@/lib/career-growth";
+import { equityGrantSummary, equityTotals, vestingSchedule, type GrantSummary } from "@/lib/vesting";
+import { ptoBalance, type PtoBalance } from "@/lib/pto";
 import { buildBragDoc, bragDocMarkdown, type BragDoc } from "@/lib/brag-doc";
 import { draftSelfReview } from "@/lib/llm";
 import { NotFoundError, ValidationError } from "./errors";
 
-// Career growth for a job the user holds: people, 1:1s, performance reviews and goals.
+// Career growth for a job the user holds: people, 1:1s, performance reviews, goals, equity
+// grants and PTO.
 // Every query is scoped by userId AND jobId, and the job must be owned (else NotFoundError),
 // so a row id from another user — or from another of the caller's jobs — is never touched.
 
-export type GrowthKind = "people" | "oneOnOnes" | "reviews" | "goals";
+export type GrowthKind = "people" | "oneOnOnes" | "reviews" | "goals" | "equity" | "pto";
 
 type Person = typeof schema.jobPeople.$inferSelect;
 type OneOnOne = typeof schema.oneOnOnes.$inferSelect;
 type Review = typeof schema.performanceReviews.$inferSelect;
 type Goal = typeof schema.goals.$inferSelect;
+type Grant = typeof schema.equityGrants.$inferSelect;
+type Pto = typeof schema.ptoEntries.$inferSelect;
 
 const rank = (list: readonly string[], v: string) => {
   const i = list.indexOf(v);
   return i === -1 ? list.length : i;
 };
 
-// Per-kind table, parser, list order and API shape.
+// Per-kind table, parser, list order and API shape. `finalize` (optional) runs cross-field
+// checks and fills derived values against the stored row (null on create).
 const KINDS = {
   people: {
     table: schema.jobPeople,
@@ -59,9 +69,23 @@ const KINDS = {
     sort: (a: Goal, b: Goal) => rank(GOAL_STATUSES, a.status) - rank(GOAL_STATUSES, b.status) || b.id - a.id,
     serialize: (r: Goal) => ({ ...r, keyResults: parseChecklist(r.keyResults) }),
   },
+  equity: {
+    table: schema.equityGrants,
+    parse: (b: Body, create: boolean) => equityInput(b, { create }),
+    finalize: (v: Record<string, unknown>, existing: Grant | null) => finalizeGrant(v, existing),
+    sort: (a: Grant, b: Grant) => (a.grantDate ?? a.vestStart ?? "").localeCompare(b.grantDate ?? b.vestStart ?? "") || a.id - b.id,
+    serialize: (r: Grant) => ({ ...r, vesting: equityGrantSummary(r, todayISO()), schedule: vestingSchedule(r) }),
+  },
+  pto: {
+    table: schema.ptoEntries,
+    parse: (b: Body, create: boolean) => ptoInput(b, { create }),
+    finalize: (v: Record<string, unknown>, existing: Pto | null) => finalizePto(v, existing),
+    sort: (a: Pto, b: Pto) => b.startDate.localeCompare(a.startDate) || b.id - a.id,
+    serialize: (r: Pto) => r,
+  },
 } as const;
 
-// The four tables share id/userId/jobId; typing the generic paths against one of them keeps
+// The tables share id/userId/jobId; typing the generic paths against one of them keeps
 // Drizzle's inference simple without `any`.
 type Table = typeof schema.goals;
 const tableOf = (kind: GrowthKind) => KINDS[kind].table as unknown as Table;
@@ -76,6 +100,15 @@ function parse(kind: GrowthKind, body: Body, create: boolean): Record<string, un
   const { values, error } = (KINDS[kind].parse as (b: Body, c: boolean) => Parsed)(body, create);
   if (error) throw new ValidationError(error);
   return values;
+}
+
+type Finalize = (v: Record<string, unknown>, existing: unknown) => Parsed;
+const finalizerOf = (kind: GrowthKind) => (KINDS[kind] as { finalize?: Finalize }).finalize;
+
+function finalize(fn: Finalize, values: Record<string, unknown>, existing: unknown): Record<string, unknown> {
+  const r = fn(values, existing);
+  if (r.error) throw new ValidationError(r.error);
+  return r.values;
 }
 
 // A 1:1's person and a review's comp row must belong to the same user and job.
@@ -106,7 +139,9 @@ export async function listItems(kind: GrowthKind, userId: string, jobId: number)
 
 export async function createItem(kind: GrowthKind, userId: string, jobId: number, body: Body): Promise<{ id: number }> {
   const job = await ownedJob(userId, jobId);
-  const values = parse(kind, body, true);
+  let values = parse(kind, body, true);
+  const fin = finalizerOf(kind);
+  if (fin) values = finalize(fin, values, null);
   await checkLinks(userId, job.id, values);
   if (kind === "oneOnOnes" && !values.date) values.date = todayISO();
   const t = tableOf(kind);
@@ -119,9 +154,19 @@ export async function createItem(kind: GrowthKind, userId: string, jobId: number
 
 export async function updateItem(kind: GrowthKind, userId: string, jobId: number, id: number, body: Body): Promise<void> {
   const job = await ownedJob(userId, jobId);
-  const values = parse(kind, body, false);
+  let values = parse(kind, body, false);
   await checkLinks(userId, job.id, values);
   const t = tableOf(kind);
+  const fin = finalizerOf(kind);
+  if (fin) {
+    const [existing] = await db
+      .select()
+      .from(t)
+      .where(and(eq(t.id, id), eq(t.userId, userId), eq(t.jobId, job.id)))
+      .limit(1);
+    if (!existing) throw new NotFoundError();
+    values = finalize(fin, values, existing);
+  }
   const updated = await db
     .update(t)
     .set({ ...values, updatedAt: new Date() })
@@ -223,4 +268,101 @@ export async function draftJobSelfReview(
   }
   const draft = await draftSelfReview({ userId, bragDoc: markdown, cycle: opts.cycle?.trim() || undefined });
   return { draft, bragDoc: markdown };
+}
+
+// --- Equity and PTO summaries ---
+
+export type EquitySummary = {
+  asOf: string;
+  grants: (GrantSummary & {
+    id: number;
+    jobId: number;
+    company: string;
+    type: string;
+    grantDate: string | null;
+    shares: number;
+    strikePrice: number | null;
+    frequency: string;
+  })[];
+  totals: { shares: number; vested: number; unvested: number; nextVest: { date: string; shares: number; grantId: number; company: string } | null };
+};
+
+// Vested / unvested / next vest per grant and in total, across all the user's jobs or one
+// (owned) job. Grant notes are not included.
+export async function getEquitySummary(userId: string, opts: { jobId?: number; asOf?: string } = {}): Promise<EquitySummary> {
+  if (opts.asOf && !ISO_DATE.test(opts.asOf)) throw new ValidationError("asOf must be YYYY-MM-DD");
+  const asOf = opts.asOf || todayISO();
+  const conds = [eq(schema.equityGrants.userId, userId)];
+  if (opts.jobId !== undefined) conds.push(eq(schema.equityGrants.jobId, (await ownedJob(userId, opts.jobId)).id));
+  const rows = await db
+    .select({
+      id: schema.equityGrants.id,
+      jobId: schema.equityGrants.jobId,
+      company: schema.jobs.company,
+      type: schema.equityGrants.type,
+      grantDate: schema.equityGrants.grantDate,
+      vestStart: schema.equityGrants.vestStart,
+      shares: schema.equityGrants.shares,
+      strikePrice: schema.equityGrants.strikePrice,
+      cliffMonths: schema.equityGrants.cliffMonths,
+      vestMonths: schema.equityGrants.vestMonths,
+      frequency: schema.equityGrants.frequency,
+    })
+    .from(schema.equityGrants)
+    .innerJoin(schema.jobs, and(eq(schema.jobs.id, schema.equityGrants.jobId), eq(schema.jobs.userId, userId)))
+    .where(and(...conds));
+  rows.sort((a, b) => (a.grantDate ?? "").localeCompare(b.grantDate ?? "") || a.id - b.id);
+  const t = equityTotals(rows, asOf);
+  const nextCompany = rows.find((r) => r.id === t.nextVest?.grantId)?.company ?? "";
+  return {
+    asOf,
+    grants: rows.map((r) => ({
+      id: r.id,
+      jobId: r.jobId,
+      company: r.company,
+      type: r.type,
+      grantDate: r.grantDate,
+      shares: r.shares,
+      strikePrice: r.strikePrice,
+      frequency: r.frequency,
+      ...equityGrantSummary(r, asOf),
+    })),
+    totals: { ...t, nextVest: t.nextVest && { ...t.nextVest, company: nextCompany } },
+  };
+}
+
+// PTO balance for one calendar year (default: this year) against job_benefits.pto_days.
+export async function getPtoSummary(userId: string, jobId: number, year?: number): Promise<PtoBalance> {
+  const y = year ?? new Date().getUTCFullYear();
+  if (!Number.isInteger(y) || y < 1900 || y > 9999) throw new ValidationError("year must be a 4-digit year");
+  const job = await ownedJob(userId, jobId);
+  const [benefits] = await db
+    .select({ ptoDays: schema.jobBenefits.ptoDays })
+    .from(schema.jobBenefits)
+    .where(and(eq(schema.jobBenefits.jobId, job.id), eq(schema.jobBenefits.userId, userId)));
+  const entries = await db
+    .select({ startDate: schema.ptoEntries.startDate, days: schema.ptoEntries.days, kind: schema.ptoEntries.kind })
+    .from(schema.ptoEntries)
+    .where(and(eq(schema.ptoEntries.userId, userId), eq(schema.ptoEntries.jobId, job.id)));
+  return ptoBalance(benefits?.ptoDays ?? null, entries, y);
+}
+
+// Create a PTO entry and return it with the balance for the year it starts in.
+export async function logPto(
+  userId: string,
+  jobId: number,
+  body: Body,
+): Promise<{ id: number; startDate: string; endDate: string; days: number; kind: string; balance: PtoBalance }> {
+  const { id } = await createItem("pto", userId, jobId, body);
+  const [row] = await db
+    .select({
+      startDate: schema.ptoEntries.startDate,
+      endDate: schema.ptoEntries.endDate,
+      days: schema.ptoEntries.days,
+      kind: schema.ptoEntries.kind,
+    })
+    .from(schema.ptoEntries)
+    .where(and(eq(schema.ptoEntries.id, id), eq(schema.ptoEntries.userId, userId)));
+  const balance = await getPtoSummary(userId, jobId, Number(row.startDate.slice(0, 4)));
+  return { id, ...row, balance };
 }

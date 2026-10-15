@@ -125,6 +125,14 @@ removed with `DELETE`, and both return `{ ok: true }`. Creates return `{ id }`. 
 | `GET/POST /api/jobs/[id]/goals` | List (active first, `keyResults` parsed) or add a goal. Body: `title` (required), `description?`, `period?`, `status?` (`active`\|`done`\|`dropped`; `done` implies progress 100), `progress?` (0–100), `keyResults?`. |
 | `PATCH/DELETE /api/jobs/[id]/goals/[subId]` | Edit or remove a goal. |
 | `GET /api/jobs/[id]/brag-doc` | `?from&to` (inclusive `YYYY-MM-DD`), `?fmt=md` (default, `text/markdown`) \| `json` (`{ doc, markdown }`) \| `docx` (attachment). It contains achievements, feedback, review highlights, goals and technologies, and never complaints, notes, 1:1s, pay or review outcomes. A bad `fmt` or date gives 400. |
+| `GET/POST /api/jobs/[id]/equity` | List grants (by grant date, each with `vesting: { vested, unvested, nextVest, fullyVestedOn }` as of today and the full `schedule`) or add one. Body: `shares` (required, > 0), `type?` (`RSU`\|`ISO`\|`NSO`\|`ESPP`\|`other`), `grantDate?`, `strikePrice?`, `vestStart?`, `cliffMonths?` (default 12), `vestMonths?` (default 48), `frequency?` (`monthly`\|`quarterly`\|`annual`), `notes?`. A cliff longer than the period gives 400. |
+| `PATCH/DELETE /api/jobs/[id]/equity/[subId]` | Edit or remove a grant (checks are run against the stored row). |
+| `GET /api/jobs/[id]/equity/summary` | `?asOf=YYYY-MM-DD` (default today). `{ asOf, grants[], totals: { shares, vested, unvested, nextVest } }`, without notes. Bad `asOf` gives 400. |
+| `GET/POST /api/jobs/[id]/pto` | List time off (newest first) or log it. Body: `startDate` (required), `endDate?` (default `startDate`), `days?` (default weekdays in the range; decimals allowed), `kind?` (`vacation`\|`sick`\|`holiday`\|`other`), `note?`. |
+| `PATCH/DELETE /api/jobs/[id]/pto/[subId]` | Edit or remove an entry; changing the dates without `days` recounts weekdays. |
+| `GET /api/jobs/[id]/pto/summary` | `?year=YYYY` (default this year). `{ year, allowance, used, remaining, byKind, entries }`; `allowance` is `job_benefits.pto_days`, `used` counts vacation + other. |
+| `GET/POST /api/jobs/[id]/files` | List document metadata (no bytes) or upload one: multipart `file` (PDF or DOCX, ≤10MB) and `kind?` (`offer_letter`\|`handbook`\|`contract`\|`review`\|`misc`, default `misc`). Returns the metadata; bad type/kind/size or no file gives 400. |
+| `GET/DELETE /api/jobs/[id]/files/[fileId]` | Download (`?inline=1` to view; sanitized `Content-Disposition`, `nosniff`) or delete a document. |
 | `POST /api/jobs/[id]/self-review` | Body `{ from?, to?, cycle? }`. An AI self-review drafted from the brag doc only. Returns `{ draft, bragDoc }`; nothing is saved. Returns 400 when the brag doc is empty and 500 when the model fails. |
 
 ## Inventions (Exhibit A)
