@@ -1,6 +1,6 @@
 import { db, schema } from "@/db";
 import { and, eq, sql } from "drizzle-orm";
-import { NotFoundError } from "./errors";
+import { NotFoundError, ValidationError } from "./errors";
 
 export type ResumeFormat = "pdf" | "docx";
 
@@ -55,4 +55,15 @@ export async function getResumeSummary(userId: string, resumeId: number) {
   if (!r) throw new NotFoundError();
   const { docx, pdf, ...meta } = r;
   return { ...meta, hasPdf: !!pdf, hasDocx: !!docx };
+}
+
+export const VARIANT_LABEL_MAX = 80;
+
+// Validate a resume variant label from user input: trimmed string (empty → null) or null.
+export function parseVariantLabel(v: unknown): string | null {
+  if (v == null) return null;
+  if (typeof v !== "string") throw new ValidationError("variantLabel must be a string or null");
+  const t = v.trim();
+  if (t.length > VARIANT_LABEL_MAX) throw new ValidationError(`variantLabel must be at most ${VARIANT_LABEL_MAX} characters`);
+  return t || null;
 }

@@ -59,16 +59,52 @@ The sweep runs in two places so it works with or without the external cron:
 `ntfyEnabled` settings and POSTs to the topic; no-ops when disabled. The `click` deep-link
 uses `APP_BASE_URL`. `POST /api/settings/test-ntfy` sends a test push for the current user.
 
-## Analytics (`GET /api/analytics`)
+## Outcome analytics (`GET /api/analytics`)
 
-Aggregates the signed-in user's applications into: total, counts by status, response rate,
-interview rate, closed won/lost, interviews scheduled, resumes generated/sent, applications
-per month, average base pay (range midpoints), and counts by source channel. Queries
-project only the columns needed (no file blobs). `expired` applications are excluded from
-the "responded" count (a dead application never progressed).
+What gets responses, and how fast. The route is a thin wrapper: `getAnalytics(userId)`
+(`src/lib/services/analytics.ts`) loads the user's applications, interviews, resumes and
+response-relevant events (projected columns only — never file blobs; every query filtered
+by `userId`), and the pure `computeAnalytics()` (`src/lib/analytics.ts`) aggregates them.
+The MCP [`get_analytics`](mcp.md) tool returns the same object.
+
+**What counts as a response.** An application has *responded* when its status moved past
+`applied` (not to `expired` — a dead application never progressed), it has an interview, or
+it logged a response event: a `status_change` (except into `applied`/`expired`), an
+`interview`, or an `email` event other than an automated application acknowledgement (see
+[email ingestion](email-ingestion.md)). An *offer* is `closed_won` or an ingested offer email.
+
+**Original fields** (shape unchanged): total, counts by status, response rate, interview
+rate, closed won/lost, interviews scheduled, resumes generated/sent, applications per month,
+average base pay (range midpoints), counts by source channel. `byMonth` buckets by
+`appliedAt`, falling back to `createdAt` for never-applied captures.
+
+**Added metrics:**
+
+- **Funnel by source channel** (`funnel.overall`, `funnel.bySource[]`, missing source →
+  `unknown`): applied → responded → interviewed → offer, with step conversions
+  `responseRate` (responded/applied), `interviewConversion` (interviewed/responded) and
+  `offerConversion` (offer/interviewed); `null` when the denominator is 0.
+- **Time to first response** (`timeToFirstResponse`): median and p75 days (linear
+  interpolation, 1 decimal) from `appliedAt` to the first response event at or after it.
+  Applications without `appliedAt` or without a response are excluded; `n` is the count used.
+- **Response rate by resume variant** (`byResumeVariant`): grouped on the most recently
+  *sent* resume (`sentAt` set) per application and its `variantLabel`, with the buckets
+  `unlabeled` (sent, no label) and `no resume sent`. Labels are set via
+  `PATCH /api/resumes/[id]` or the variant-label box on the application's resume list.
+- **Response rate by** seniority, location mode (missing → `unspecified`) and interest
+  rating (`5`…`1`, then `unrated`).
+- **Small-sample flag:** every funnel row, rate bucket and the time-to-response block has
+  `smallSample: true` when n < 5 (`SMALL_SAMPLE`).
+
+**UI** (`src/app/analytics/page.tsx`): stat tiles (now including median/p75 time to
+response), a funnel with a per-source table, and four response-rate bar charts on a fixed
+0–100% scale. Small-sample buckets are drawn as hollow bars and labelled "⚠ small n";
+hovering a row shows the exact counts.
 
 ## Related
 
 - [Applications & tracking](applications-and-tracking.md) · [API reference](../api/reference.md) ·
   [Configuration](../operations/configuration.md) · [Deployment](../operations/deployment.md) ·
-  [Service layer](../architecture/service-layer.md)
+  [Service layer](../architecture/service-layer.md) · [MCP server](mcp.md) ·
+  [Email ingestion](email-ingestion.md) · [Resume generation](resume-generation.md) ·
+  [Data model](../architecture/data-model.md)

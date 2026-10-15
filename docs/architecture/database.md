@@ -50,6 +50,8 @@ employment-history tables `jobs`, `job_compensation`, `job_benefits` and `journa
 `0007_special_silver_sable.sql` creates `ingested_emails` (unique
 `ingested_emails_user_message_uq` on `(user_id, message_id)`; see
 [email ingestion](../features/email-ingestion.md)).
+`0008_nervous_sheva_callister.sql` adds the nullable `resumes.variant_label` (see
+[outcome analytics](../features/reminders-and-analytics.md#outcome-analytics-get-apianalytics)).
 
 ### Migration parity
 

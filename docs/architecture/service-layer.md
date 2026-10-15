@@ -29,7 +29,8 @@ such as MCP reuses the exact same code path.
 | `attention.ts` | `candidatesForUser(userId, quietDays)`, `OPEN_STATUSES`, `Candidate` | `/api/cron/reminders` (GET and the sweep); MCP `needs_attention` |
 | `journal.ts` | `listJournal(userId, { jobId?, from?, to?, kind? })` (across all jobs when `jobId` is omitted), `addJournalEntry`, `updateJournalEntry` (clears `syncedAt`), `deleteJournalEntry` | `/api/jobs/[id]/journal`, `/api/journal/[id]`; MCP `add_journal_entry`, `list_journal` |
 | `emails.ts` | `ingestEmail` (classify via `classifyEmail`, rank with `rankCandidates`, propose, upsert `ingested_emails`; applies only on `apply` + a confident match), `applyEmailActions` (atomic claim on `applied_at`, runs actions through `updateApplication`/`addInterview`/`logEvent`, releases the claim on failure), `listRecentEmails` | `GET /api/emails`; MCP `ingest_email`, `apply_email_actions` |
-| `resumes.ts` | `getResumeFile(userId, resumeId, "pdf" \| "docx")` → `{ data, filename, contentType }`; `getResumeSummary` (metadata + `hasPdf`/`hasDocx`, no bytes) | `/api/resumes/[id]/download`; MCP `generate_resume` |
+| `resumes.ts` | `getResumeFile(userId, resumeId, "pdf" \| "docx")` → `{ data, filename, contentType }`; `getResumeSummary` (metadata + `hasPdf`/`hasDocx`, no bytes); `parseVariantLabel` (trim, ≤80 chars, else `ValidationError`) | `/api/resumes/[id]/download`, `PATCH /api/resumes/[id]`; MCP `generate_resume` |
+| `analytics.ts` | `getAnalytics(userId)`: loads projected rows and aggregates them with the pure `computeAnalytics` (`src/lib/analytics.ts`) | `GET /api/analytics`; MCP `get_analytics` |
 
 Existing helpers are reused as they are rather than wrapped: `extractJob`, `findDuplicates`,
 `createResumeForApplication`, `generateDraft`, `getOwnedJob`, `jobInput`, `journalInput`,

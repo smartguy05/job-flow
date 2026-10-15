@@ -66,7 +66,7 @@ See [applications & tracking](../features/applications-and-tracking.md) and
 |---|---|
 | `GET /api/resumes` | List the user's resumes across all applications (with owning `company`/`roleTitle`, no file blobs), newest first. Used as the "add existing" source list. |
 | `GET /api/resumes/[id]` | Resume metadata + parsed `content` and `chat` (no file blobs). |
-| `PATCH /api/resumes/[id]` | Save edited `content` (re-renders), set `status`, or `markSent`. |
+| `PATCH /api/resumes/[id]` | Save edited `content` (re-renders), set `status`, `markSent`, or `variantLabel` (string ≤80 chars, trimmed; `""`/`null` clears; `400` otherwise). |
 | `POST /api/resumes/[id]/refine` | Apply free-text `feedback`; re-renders. |
 | `GET /api/resumes/[id]/download` | Stream file bytes. `?fmt=docx\|pdf` (default pdf), `?inline=1`. |
 
@@ -181,7 +181,9 @@ See [email ingestion](../features/email-ingestion.md).
 
 | Method / Path | Purpose |
 |---|---|
-| `GET /api/analytics` | Aggregate pipeline metrics for the user. |
+| `GET /api/analytics` | Outcome analytics for the user. Original fields: `total`, `byStatus`, `responseRate`, `interviewRate`, `closedWon`, `closedLost`, `interviewsScheduled`, `resumesGenerated`, `resumesSent`, `byMonth` (keyed on `appliedAt ?? createdAt`), `avgBasePay`, `countsBySource`. Added: `funnel` (`overall` + `bySource[]`: `applied`/`responded`/`interviewed`/`offer` with `responseRate`/`interviewConversion`/`offerConversion`), `timeToFirstResponse` (`n`, `medianDays`, `p75Days`), and rate buckets `byResumeVariant`, `bySeniority`, `byLocationMode`, `byInterest` (`{ key, n, responded, rate }`). Every bucket carries `smallSample` (n < 5). Also exposed as the MCP `get_analytics` tool. |
+
+See [reminders & analytics](../features/reminders-and-analytics.md#outcome-analytics-get-apianalytics).
 
 ## Offers
 

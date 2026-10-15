@@ -25,7 +25,7 @@ documents how the system is built and operated. Start here and follow the links.
 - [Employment history](features/employment-history.md) — jobs you hold: comp timeline, benefits, work journal (achievements, technologies, complaints), AI profile sync with approval, backfill import; auto-created on `closed_won`.
 - [Prior inventions (Exhibit A)](features/prior-inventions.md) — structured list of prior inventions/works of authorship; AI drafting (describe, GitHub repo, suggest from history, import), DOCX/PDF/text export, per-entry opt-in to resumes.
 - [Offer comparison](features/offer-comparison.md) — side-by-side table + AI verdict across competing offers, with benefits-PDF upload.
-- [Reminders & analytics](features/reminders-and-analytics.md) — per-user reminder sweep, ntfy, analytics.
+- [Reminders & analytics](features/reminders-and-analytics.md) — per-user reminder sweep, ntfy, outcome analytics (funnel, time to response, response rate by variant).
 - [MCP server](features/mcp.md) — use JobFlow from Claude: Streamable HTTP endpoint at `/api/mcp`, Authentik OAuth (resource-server token verification, RFC 9728 discovery), tool list, connector setup for claude.ai/Desktop/Code.
 - [Email ingestion](features/email-ingestion.md) — Claude reads Gmail with its own connector and hands messages to JobFlow over MCP (`ingest_email`, `apply_email_actions`, `triage_job_emails` prompt): classification, application matching, proposed status/interview/next-action updates, idempotent apply, dashboard "Recent email activity".
 - [Mobile & PWA](features/mobile-and-pwa.md) — mobile-first responsive shell, bottom-nav + drawer, installable PWA.

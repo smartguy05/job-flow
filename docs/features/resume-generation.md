@@ -106,8 +106,11 @@ The editor (`src/app/resumes/[id]/page.tsx`) shows a live PDF preview beside the
 panel on large screens; on mobile the inline preview is dropped in favor of a "Preview PDF"
 link (native viewer) with the editor first. See [mobile & PWA](mobile-and-pwa.md).
 
-- `PATCH /api/resumes/[id]` — save hand-edited content (re-renders), finalize, or
-  `markSent`. Re-rendering goes through `rerenderResume(userId, resumeId, content)`.
+- `PATCH /api/resumes/[id]` — save hand-edited content (re-renders), finalize,
+  `markSent`, or set a free-text `variantLabel`. Re-rendering goes through
+  `rerenderResume(userId, resumeId, content)`. The label is edited inline on the
+  application's resume list and feeds the "by resume variant" breakdown in
+  [outcome analytics](reminders-and-analytics.md#outcome-analytics-get-apianalytics).
 - `POST /api/resumes/[id]/refine` — free-text feedback ("lead with my AI work"). 
   `refineResumeContent()` revises the JSON (still verifiable against career info), appends
   to the chat history, and re-renders.

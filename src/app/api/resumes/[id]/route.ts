@@ -5,6 +5,8 @@ import { rerenderResume } from "@/lib/resume-service";
 import { ResumeContentSchema } from "@/lib/resume-content";
 import { logEvent } from "@/lib/events";
 import { getUser, unauthorized } from "@/lib/auth";
+import { parseVariantLabel } from "@/lib/services/resumes";
+import { errorResponse } from "@/lib/services/errors";
 
 async function getId(ctx: { params: Promise<{ id: string }> }) {
   return parseInt((await ctx.params).id, 10);
@@ -22,6 +24,7 @@ const resumeMeta = {
   pageCount: schema.resumes.pageCount,
   fitWarning: schema.resumes.fitWarning,
   sentAt: schema.resumes.sentAt,
+  variantLabel: schema.resumes.variantLabel,
   createdAt: schema.resumes.createdAt,
   updatedAt: schema.resumes.updatedAt,
 };
@@ -39,7 +42,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   return NextResponse.json({ ...r, content: JSON.parse(r.contentJson), chat: JSON.parse(r.chatJson) });
 }
 
-// Save edited content (re-render), finalize, or mark as sent.
+// Save edited content (re-render), finalize, mark as sent, or set the variant label.
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   const user = await getUser(req);
   if (!user) return unauthorized();
@@ -52,6 +55,13 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
   if (!r) return NextResponse.json({ error: "Not found" }, { status: 404 });
   const body = await req.json();
 
+  let variantLabel: string | null | undefined;
+  try {
+    if ("variantLabel" in body) variantLabel = parseVariantLabel(body.variantLabel);
+  } catch (e) {
+    return errorResponse(e);
+  }
+
   try {
     if (body.content) {
       const content = ResumeContentSchema.parse(body.content);
@@ -59,6 +69,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     }
     const update: Record<string, unknown> = { updatedAt: new Date() };
     if (body.status) update.status = body.status;
+    if (variantLabel !== undefined) update.variantLabel = variantLabel;
     if (body.markSent) {
       update.sentAt = new Date();
       update.status = "final";

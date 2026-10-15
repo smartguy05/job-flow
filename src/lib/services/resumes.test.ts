@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 import { db, schema } from "@/db";
 import { insertApp, seedUser } from "@/test/req";
-import { NotFoundError } from "./errors";
-import { getResumeFile, getResumeSummary } from "./resumes";
+import { NotFoundError, ValidationError } from "./errors";
+import { getResumeFile, getResumeSummary, parseVariantLabel, VARIANT_LABEL_MAX } from "./resumes";
 
 const uid = () => globalThis.__testUserId;
 
@@ -72,5 +72,15 @@ describe("getResumeSummary", () => {
     });
     const other = await seedUser("resume-summary-other");
     await expect(getResumeSummary(other.id, r.id)).rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+describe("parseVariantLabel", () => {
+  it("trims, maps empty/null to null, and rejects bad input", () => {
+    expect(parseVariantLabel("  ML ")).toBe("ML");
+    expect(parseVariantLabel("   ")).toBeNull();
+    expect(parseVariantLabel(null)).toBeNull();
+    expect(() => parseVariantLabel(3)).toThrow(ValidationError);
+    expect(() => parseVariantLabel("x".repeat(VARIANT_LABEL_MAX + 1))).toThrow(ValidationError);
   });
 });

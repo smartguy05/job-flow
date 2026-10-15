@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
 import { GET } from "./route";
-import { req, insertApp } from "@/test/req";
+import { req, anonReq, insertApp, seedUser } from "@/test/req";
 import { db, schema } from "@/db";
 
 beforeEach(async () => {
@@ -57,5 +57,30 @@ describe("GET /api/analytics", () => {
     await insertApp({});
     const body = await (await GET(req("/api/analytics"))).json();
     expect(body.avgBasePay).toBeNull();
+  });
+
+  it("requires a session", async () => {
+    expect((await GET(anonReq("/api/analytics"))).status).toBe(401);
+  });
+
+  it("adds outcome breakdowns without changing the original fields", async () => {
+    await insertApp({ sourceChannel: "linkedin", seniorityLevel: "Senior", status: "in_progress" });
+    await insertApp({ sourceChannel: "linkedin", locationMode: "remote", interestRating: 4 });
+    const body = await (await GET(req("/api/analytics"))).json();
+    expect(body.funnel.bySource[0]).toMatchObject({ source: "linkedin", applied: 2, responded: 1, smallSample: true });
+    expect(body.timeToFirstResponse).toMatchObject({ n: 0, medianDays: null });
+    expect(body.byResumeVariant).toEqual([{ key: "no resume sent", n: 2, responded: 1, rate: 0.5, smallSample: true }]);
+    expect(body.bySeniority.map((b: { key: string }) => b.key).sort()).toEqual(["Senior", "unspecified"]);
+    expect(body.byLocationMode.map((b: { key: string }) => b.key).sort()).toEqual(["remote", "unspecified"]);
+    expect(body.byInterest.map((b: { key: string }) => b.key)).toEqual(["4", "unrated"]);
+  });
+
+  it("never includes another user's applications", async () => {
+    const other = await seedUser("analytics-route-other");
+    await insertApp({ userId: other.id, status: "in_progress" });
+    await insertApp({});
+    const body = await (await GET(req("/api/analytics"))).json();
+    expect(body.total).toBe(1);
+    expect(body.responseRate).toBe(0);
   });
 });

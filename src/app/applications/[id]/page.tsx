@@ -3,7 +3,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { StatusBadge } from "@/components/StatusBadge";
 import { JobDetailsPanel } from "@/components/JobDetailsPanel";
 import { api, fmtDate, fmtRelative, STATUS_LABELS, STATUS_ORDER, toDateTimeLocal, fromDateTimeLocal } from "@/lib/ui";
 import { formatPay, type JobDetails } from "@/lib/job-fields";
@@ -26,7 +25,8 @@ type Detail = {
   contact: { id: number; name: string; agency: string | null; email: string | null } | null;
   resumes: {
     id: number; version: number; status: string; pageCount: number | null;
-    fitWarning: string | null; sentAt: string | null; createdAt: string; hasDocx: boolean; hasPdf: boolean;
+    fitWarning: string | null; sentAt: string | null; variantLabel: string | null; createdAt: string;
+    hasDocx: boolean; hasPdf: boolean;
   }[];
   interviews: {
     id: number; scheduledAt: string | null; round: string | null; interviewer: string | null;
@@ -55,14 +55,18 @@ export default function ApplicationDetail() {
   // overwrite notes the user is still typing but hasn't saved yet.
   const notesDirty = useRef(false);
 
-  const load = useCallback(async () => {
-    const data = await api<Detail>(`/api/applications/${id}`);
+  const applyDetail = useCallback((data: Detail) => {
     setD(data);
     if (!notesDirty.current) setNotes(data.notes ?? "");
     return data;
-  }, [id]);
+  }, []);
+  const load = useCallback(
+    async () => applyDetail(await api<Detail>(`/api/applications/${id}`)),
+    [id, applyDetail],
+  );
 
-  useEffect(() => { load(); }, [load]);
+  // Initial fetch; state is set in the promise callback, not synchronously in the effect.
+  useEffect(() => { api<Detail>(`/api/applications/${id}`).then(applyDetail); }, [id, applyDetail]);
 
   // Poll while a resume generation is in flight (kicked off from capture).
   useEffect(() => {
@@ -191,6 +195,7 @@ export default function ApplicationDetail() {
                     <div className="text-xs" style={{ color: "var(--muted)" }}>{fmtRelative(r.createdAt)}</div>
                   </div>
                   <div className="flex gap-2 items-center flex-wrap">
+                    <VariantLabelInput resumeId={r.id} initial={r.variantLabel} />
                     <Link href={`/resumes/${r.id}`} className="btn btn-ghost">Edit / refine</Link>
                     {r.hasPdf && <a className="btn btn-ghost" href={`/api/resumes/${r.id}/download?fmt=pdf`}>PDF</a>}
                     {r.hasDocx && <a className="btn btn-ghost" href={`/api/resumes/${r.id}/download?fmt=docx`}>DOCX</a>}
@@ -364,6 +369,44 @@ type ResumeOption = {
 
 // Pick a previously created resume (from this or another application) and attach a copy of it
 // to this application as a new draft version, via POST /api/applications/[id]/resumes.
+// Free-text "variant" tag for a resume (e.g. "ML-heavy"). Saved on blur; analytics groups
+// response rate by the label of the sent resume.
+function VariantLabelInput({ resumeId, initial }: { resumeId: number; initial: string | null }) {
+  const [value, setValue] = useState(initial ?? "");
+  const [saved, setSaved] = useState(initial ?? "");
+  const [error, setError] = useState("");
+
+  async function save() {
+    if (value.trim() === saved) return;
+    setError("");
+    try {
+      const r = await api<{ variantLabel: string | null }>(`/api/resumes/${resumeId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ variantLabel: value }),
+      });
+      setSaved(r.variantLabel ?? "");
+      setValue(r.variantLabel ?? "");
+    } catch (e) {
+      setError((e as Error).message);
+    }
+  }
+
+  return (
+    <input
+      className="input text-sm"
+      style={{ width: "10rem", ...(error ? { borderColor: "var(--danger)" } : {}) }}
+      placeholder="Variant label"
+      aria-label="Resume variant label"
+      title={error || "Tag this version (e.g. “ML-heavy”) to compare response rates in Analytics"}
+      maxLength={80}
+      value={value}
+      onChange={(e) => setValue(e.target.value)}
+      onBlur={save}
+      onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+    />
+  );
+}
+
 function AddExistingResume({
   applicationId, disabled, onAdded,
 }: {
@@ -603,8 +646,13 @@ function JobDescriptionPanel({
   const [busy, setBusy] = useState("");
   const [msg, setMsg] = useState("");
 
-  // Reflect external reloads (e.g. after an upload elsewhere) into the editable field.
-  useEffect(() => { setJd(initialJd ?? ""); }, [initialJd]);
+  // Reflect external reloads (e.g. after an upload elsewhere) into the editable field —
+  // adjusted during render when the prop changes, rather than in an effect.
+  const [prevInitialJd, setPrevInitialJd] = useState(initialJd);
+  if (initialJd !== prevInitialJd) {
+    setPrevInitialJd(initialJd);
+    setJd(initialJd ?? "");
+  }
 
   const dirty = jd !== (initialJd ?? "");
 

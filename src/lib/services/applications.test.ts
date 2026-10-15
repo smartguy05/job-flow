@@ -86,10 +86,11 @@ describe("getApplicationDetail", () => {
       version: 1,
       contentJson: "{}",
       pdfData: Buffer.from("pdf"),
+      variantLabel: "ML-heavy",
     });
     const detail = await getApplicationDetail(uid(), id);
     expect(detail.resumes).toHaveLength(1);
-    expect(detail.resumes[0]).toMatchObject({ version: 1, hasPdf: true, hasDocx: false });
+    expect(detail.resumes[0]).toMatchObject({ version: 1, hasPdf: true, hasDocx: false, variantLabel: "ML-heavy" });
     expect(detail.resumes[0]).not.toHaveProperty("pdfData");
     expect(detail.jobId).toBeNull();
   });

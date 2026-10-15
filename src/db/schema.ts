@@ -149,6 +149,9 @@ export const resumes = pgTable(
     pageCount: integer("page_count"),
     fitWarning: text("fit_warning"),
     sentAt: timestamp("sent_at", { withTimezone: true }),
+    // Free-text label for the resume "variant" (e.g. "ML-heavy"); analytics groups response
+    // rate by the label of the sent resume.
+    variantLabel: text("variant_label"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().$defaultFn(now),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().$defaultFn(now),
   },

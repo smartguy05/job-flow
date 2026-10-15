@@ -126,6 +126,7 @@ export async function getApplicationDetail(userId: string, id: number) {
       pageCount: schema.resumes.pageCount,
       fitWarning: schema.resumes.fitWarning,
       sentAt: schema.resumes.sentAt,
+      variantLabel: schema.resumes.variantLabel,
       createdAt: schema.resumes.createdAt,
       // Presence flags only — never pull the DOCX/PDF bytes into memory.
       hasDocx: sql<boolean>`${schema.resumes.docxData} is not null`,
@@ -179,6 +180,7 @@ export async function getApplicationDetail(userId: string, id: number) {
       pageCount: r.pageCount,
       fitWarning: r.fitWarning,
       sentAt: r.sentAt,
+      variantLabel: r.variantLabel,
       createdAt: r.createdAt,
       hasDocx: !!r.hasDocx,
       hasPdf: !!r.hasPdf,

@@ -25,13 +25,13 @@ from, and the [API reference](../api/reference.md) for per-route behavior.
 | `settings` | `(userId, key)` PK | Per-user key/value (JSON-encoded values). |
 | `contacts` | `id` identity | Recruiters/contacts. |
 | `applications` | `id` identity | The core record (~40 columns). `status` (`text`) is one of `applied` \| `in_progress` \| `closed_won` \| `closed_lost` \| `expired`; `appliedAt` is the user-settable applied date; `lastActivityAt` drives reminders + auto-expiry. |
-| `resumes` | `id` identity | Generated resume versions + file bytes. |
+| `resumes` | `id` identity | Generated resume versions + file bytes. `sent_at` marks the version actually sent; optional `variant_label` (free text, ≤80 chars, e.g. "ML-heavy") tags the version so [outcome analytics](../features/reminders-and-analytics.md#outcome-analytics-get-apianalytics) can compare response rates by variant. |
 | `interviews` | `id` identity | Interview rounds per application, plus an optional post-interview debrief (`transcript`, `debrief_questions`/`debrief_answers`/`debrief_action_items` as JSON `text`, `debrief_summary`, `debrief_sentiment` JSON, `debrief_at`) and an optional AI **interview prep pack** (`prep_pack_json` — the full pack as JSON `text` — and `prep_generated_at`). Audio is transcribed and discarded — no audio bytes are stored. |
 | `application_files` | `id` identity | Binary documents uploaded against an application. `kind` is one of `benefits` \| `resume` \| `cover_letter` \| `message` \| `offer_letter` \| `misc` (defaults to `benefits`). `data bytea`, plus `name`/`mime_type`/`size`. Only `kind = benefits` files are fed to the model as native document blocks during offer comparison — the other kinds are store-and-download only. |
 | `offer_comparisons` | `id` identity | Saved offer comparisons. `application_ids` is a JSON `number[]` (not a FK — the snapshot must survive edits/deletes); `result_json` snapshots the deterministic table + AI verdict; optional `title`/`priorities`. |
 | `interview_questions` | `id` identity | Questions the user asks interviewers. `application_id` NULL = general (applies to every job); otherwise specific to that application (`ON DELETE CASCADE`). `text`, `sort_order`. Index `(user_id, application_id)`. |
 | `application_question_state` | `id` identity | Per-job check state + notes for a question. `application_id` + `question_id` (both `ON DELETE CASCADE`), `checked_at` (null = unchecked), `notes`, `updated_at`. Unique `(application_id, question_id)`; no row = unchecked, no notes. See [interview questions](../features/interview-questions.md). |
-| `events` | `id` identity | Activity log (timeline + analytics). `type` is free text; `email` events come from [email ingestion](../features/email-ingestion.md). |
+| `events` | `id` identity | Activity log (timeline + analytics). `type` is free text; `email` events come from [email ingestion](../features/email-ingestion.md). Analytics treats `status_change` (except into `applied`/`expired`), `interview` and non-acknowledgement `email` events as employer responses. |
 | `message_drafts` | `id` identity | Reply/cover-letter/follow-up drafts. |
 | `career_profile` | `userId` PK | One master career-info markdown per user. |
 | `career_files` | `id` identity | Supplementary source docs (many per user). |
@@ -95,5 +95,5 @@ affected feature/API docs in the same change.
 
 ## Related
 
-- [Database layer](database.md) · [Email ingestion](../features/email-ingestion.md) · [OIDC flow](../auth/oidc-flow.md) ·
+- [Database layer](database.md) · [Reminders & analytics](../features/reminders-and-analytics.md) · [Email ingestion](../features/email-ingestion.md) · [OIDC flow](../auth/oidc-flow.md) ·
   [Resume generation](../features/resume-generation.md) · [API reference](../api/reference.md)

@@ -81,4 +81,31 @@ describe("PATCH /api/resumes/[id]", () => {
     expect(res.status).toBe(500);
     expect(mockRerender).not.toHaveBeenCalled();
   });
+
+  it("sets, trims and clears the variant label", async () => {
+    const rid = await insertResume(await insertApp());
+    let body = await (await PATCH(req(`/api/resumes/${rid}`, "PATCH", { variantLabel: "  ML-heavy " }), ctx(rid))).json();
+    expect(body.variantLabel).toBe("ML-heavy");
+    expect(body.status).toBe("draft");
+    body = await (await PATCH(req(`/api/resumes/${rid}`, "PATCH", { variantLabel: "" }), ctx(rid))).json();
+    expect(body.variantLabel).toBeNull();
+    await PATCH(req(`/api/resumes/${rid}`, "PATCH", { variantLabel: "B" }), ctx(rid));
+    body = await (await PATCH(req(`/api/resumes/${rid}`, "PATCH", { variantLabel: null }), ctx(rid))).json();
+    expect(body.variantLabel).toBeNull();
+  });
+
+  it("rejects a non-string or overlong variant label with 400", async () => {
+    const rid = await insertResume(await insertApp());
+    expect((await PATCH(req(`/api/resumes/${rid}`, "PATCH", { variantLabel: 5 }), ctx(rid))).status).toBe(400);
+    expect((await PATCH(req(`/api/resumes/${rid}`, "PATCH", { variantLabel: "x".repeat(81) }), ctx(rid))).status).toBe(400);
+  });
+
+  it("cannot label another user's resume", async () => {
+    const rid = await insertResume(await insertApp());
+    const other = await seedUser("variant-other");
+    const res = await PATCH(other.req(`/api/resumes/${rid}`, "PATCH", { variantLabel: "hijack" }), ctx(rid));
+    expect(res.status).toBe(404);
+    const [row] = await db.select().from(schema.resumes).where(eq(schema.resumes.id, rid));
+    expect(row.variantLabel).toBeNull();
+  });
 });

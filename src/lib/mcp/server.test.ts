@@ -25,7 +25,7 @@ describe("buildMcpServer", () => {
       expect.arrayContaining([
         "capture_job", "list_applications", "get_application", "update_application", "add_interview",
         "update_interview", "needs_attention", "generate_resume", "draft_message", "list_jobs",
-        "add_journal_entry", "list_journal", "ingest_email", "apply_email_actions",
+        "add_journal_entry", "list_journal", "ingest_email", "apply_email_actions", "get_analytics",
       ]),
     );
     for (const t of tools) {

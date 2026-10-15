@@ -62,6 +62,7 @@ file bytes are never returned.
 | `add_journal_entry` | `{ jobId, title, body?, kind?, impact?, entryDate?, technologies? }`. |
 | `list_journal` | `{ jobId?, kind?, from?, to? }`. Spans all jobs when `jobId` is omitted. |
 | `ingest_email` | `{ messageId, from, subject, date?, body, apply? }`. Classify one email, rank matching applications and propose actions; applies only with `apply` and a single confident match. Idempotent per message. See [email ingestion](email-ingestion.md). |
+| `get_analytics` | No input. The same outcome analytics as `GET /api/analytics` (funnel by source, time to first response, response rate by resume variant/seniority/location/interest, `smallSample` flags). See [reminders & analytics](reminders-and-analytics.md#outcome-analytics-get-apianalytics). |
 | `apply_email_actions` | `{ messageId, applicationId, actions }`. Apply user-approved actions (`set_status`, `add_interview`, `set_next_action`, `log_event`) from an ingested email, once. |
 
 ## Prompts
