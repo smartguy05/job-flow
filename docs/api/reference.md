@@ -38,7 +38,7 @@ See [MCP server](../features/mcp.md) for the tool list.
 | `GET /api/applications` | List (with contact + resume count). Lazily expires the caller's stale applications first. |
 | `POST /api/applications` | Create. Body: `roleTitle` (req), `company?`, `contactId?`/`contactName?`, detail fields, `appliedAt?` (ISO date) or `markApplied?` (today). → `{ id }`. |
 | `GET /api/applications/[id]` | Full detail: app, contact, resume summaries (`hasDocx`/`hasPdf`), interviews (incl. prep pack), drafts, events, uploaded `files` (metadata only), and `jobId` (the job created from it, or `null`). |
-| `PATCH /api/applications/[id]` | Partial update; accepts `appliedAt` (ISO date, or `null` to clear); status change logs an event. Changing to `closed_won` auto-creates a job (idempotent). |
+| `PATCH /api/applications/[id]` | Partial update; accepts `appliedAt` (ISO date, or `null` to clear) and `contactId` (must be one of the user's contacts, else 400; `null` clears); status change logs an event. Changing to `closed_won` auto-creates a job (idempotent). |
 | `DELETE /api/applications/[id]` | Delete (children cascade). |
 | `PUT /api/applications/[id]/job-description` | Set the job description used for tailoring. Either JSON `{ jdSnapshot }` (paste/amend) or `multipart/form-data` with a `file` (PDF/Word/text, ≤10MB — text extracted server-side). Logs a `jd_updated` event. → `{ jdSnapshot }`. |
 | `POST /api/applications/[id]/generate` | Generate a tailored resume version → `{ resumeId }`. 404 if app not owned. |

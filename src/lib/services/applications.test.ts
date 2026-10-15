@@ -119,6 +119,29 @@ describe("updateApplication", () => {
     expect(row.lastActivityAt.getTime()).toBeGreaterThan(daysAgo(1).getTime());
   });
 
+  it("rejects a contactId owned by another user and keeps the existing contact", async () => {
+    const other = await seedUser("apps-svc-update-contact-owner");
+    const [foreign] = await db
+      .insert(schema.contacts)
+      .values({ userId: other.id, name: "Not yours" })
+      .returning({ id: schema.contacts.id });
+    const [mine] = await db
+      .insert(schema.contacts)
+      .values({ userId: uid(), name: "Mine" })
+      .returning({ id: schema.contacts.id });
+    const id = await insertApp({ contactId: mine.id });
+    await expect(updateApplication(uid(), id, { contactId: foreign.id })).rejects.toBeInstanceOf(ValidationError);
+    const [row] = await db.select().from(schema.applications).where(eq(schema.applications.id, id));
+    expect(row.contactId).toBe(mine.id);
+    // Own contacts and clearing still work.
+    await updateApplication(uid(), id, { contactId: null });
+    const [cleared] = await db.select().from(schema.applications).where(eq(schema.applications.id, id));
+    expect(cleared.contactId).toBeNull();
+    await updateApplication(uid(), id, { contactId: mine.id });
+    const [set] = await db.select().from(schema.applications).where(eq(schema.applications.id, id));
+    expect(set.contactId).toBe(mine.id);
+  });
+
   it("throws NotFoundError across tenants and leaves the row untouched", async () => {
     const other = await seedUser("apps-svc-update-other");
     const id = await insertApp({ notes: "orig" });

@@ -1,5 +1,5 @@
 import { db, schema } from "@/db";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { NotFoundError } from "./errors";
 
 export type ResumeFormat = "pdf" | "docx";
@@ -45,8 +45,9 @@ export async function getResumeSummary(userId: string, resumeId: number) {
       status: schema.resumes.status,
       pageCount: schema.resumes.pageCount,
       fitWarning: schema.resumes.fitWarning,
-      docx: schema.resumes.docxData,
-      pdf: schema.resumes.pdfData,
+      // Presence flags only — never pull the DOCX/PDF bytes into memory.
+      docx: sql<boolean>`${schema.resumes.docxData} is not null`,
+      pdf: sql<boolean>`${schema.resumes.pdfData} is not null`,
     })
     .from(schema.resumes)
     .where(and(eq(schema.resumes.id, resumeId), eq(schema.resumes.userId, userId)))

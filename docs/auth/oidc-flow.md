@@ -89,8 +89,12 @@ discovering it through `/.well-known/oauth-protected-resource`.
   That is `MCP_OAUTH_ISSUER` when a dedicated provider is used, else `OIDC_ISSUER`. It then
   calls `jwtVerify` against that issuer's JWKS with `issuer: cfg.issuer` and
   `audience: accessTokenAudience()`. The audience is `MCP_OAUTH_AUDIENCE` (comma-separated
-  allowed) or `OIDC_CLIENT_ID`. It returns `{ sub }`, or throws on a bad signature, issuer,
-  audience, expiry or a missing `sub`.
+  allowed) or `OIDC_CLIENT_ID`. `exp` is required (a token without one is rejected, not
+  treated as never-expiring). It returns `{ sub }`, or throws on a bad signature, issuer,
+  audience, missing/past expiry or a missing `sub`.
+- With the default audience (`OIDC_CLIENT_ID`), the web app's own ID tokens share the
+  issuer, key and `aud` with its access tokens, so they would also verify. Use a dedicated
+  MCP provider (`MCP_OAUTH_ISSUER` + `MCP_OAUTH_AUDIENCE`) to keep the two separate.
 - Discovery and JWKS are cached per issuer and per `jwks_uri`, with a 1h discovery TTL. jose
   refetches JWKS on an unknown `kid`, so key rotation works.
 - `getBearerUser(req)` (`src/lib/auth.ts`) parses `Authorization: Bearer`, verifies, then

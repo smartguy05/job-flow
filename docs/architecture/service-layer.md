@@ -21,7 +21,7 @@ such as MCP reuses the exact same code path.
 
 | Module | Functions | Used by |
 |---|---|---|
-| `applications.ts` | `listApplications` (lazily runs `expireStaleApplications`), `createApplication` (inline contact, foreign `contactId` ignored), `getApplicationDetail` (resume summaries without blobs, linked `jobId`), `updateApplication` (status events, `appliedAt` backfill, `createJobFromApplication` on `closed_won`), `deleteApplication` | `/api/applications`, `/api/applications/[id]`; MCP `capture_job`, `list_applications`, `get_application`, `update_application` |
+| `applications.ts` | `listApplications` (lazily runs `expireStaleApplications`), `createApplication` (inline contact, foreign `contactId` ignored), `getApplicationDetail` (resume summaries without blobs, linked `jobId`), `updateApplication` (foreign `contactId` → `ValidationError`, status events, `appliedAt` backfill, `createJobFromApplication` on `closed_won`), `deleteApplication` | `/api/applications`, `/api/applications/[id]`; MCP `capture_job`, `list_applications`, `get_application`, `update_application` |
 | `interviews.ts` | `addInterview` (logs an `interview` event), `updateInterview`, `deleteInterview` | `/api/applications/[id]/interviews`, `/api/interviews/[id]`; MCP `add_interview`, `update_interview` |
 | `drafts.ts` | `createDraft(userId, applicationId, { type?, extra? })`: generates via `generateDraft`, stores it and logs a `note` event. Unknown `type` gives `ValidationError`. | `/api/applications/[id]/drafts`; MCP `draft_message` |
 | `jobs.ts` | `listJobs` (current first, `tenureMonths`, parsed technologies) | `GET /api/jobs`; MCP `list_jobs` |

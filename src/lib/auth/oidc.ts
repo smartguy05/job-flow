@@ -180,6 +180,8 @@ export async function verifyAccessToken(token: string): Promise<{ sub: string }>
   const { payload } = await jwtVerify(token, getJwks(cfg), {
     issuer: cfg.issuer,
     audience: accessTokenAudience(),
+    // jose only checks `exp` when present; a bearer token must always expire.
+    requiredClaims: ["exp"],
   });
   if (!payload.sub) throw new Error("access token missing sub");
   return { sub: String(payload.sub) };

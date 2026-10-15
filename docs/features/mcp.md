@@ -50,7 +50,7 @@ file bytes are never returned.
 
 | Tool | What it does |
 |---|---|
-| `capture_job` | `{ text, companyHint?, contactHint?, save?, markApplied?, allowDuplicate? }`. Runs `extractJob` and `findDuplicates`. Nothing is saved unless `save` is true, and a save is held back (`note`) when likely duplicates exist unless `allowDuplicate` is set. |
+| `capture_job` | `{ text, companyHint?, contactHint?, save?, markApplied?, allowDuplicate? }`. Runs `extractJob` and `findDuplicates`. Only the known extraction fields are saved; any other key the model emits (`status`, `notes`, `appliedAt`, `contactId`, …) is dropped, since pasted text may carry prompt injection. Nothing is saved unless `save` is true, and a save is held back (`note`) when likely duplicates exist unless `allowDuplicate` is set. |
 | `list_applications` | `{ status?, search?, includeClosed? }`. Compact rows filtered with `filterApplications` (`src/lib/dashboard-filter.ts`). Closed and expired rows are hidden by default. |
 | `get_application` | `{ id }`. Full detail: fields, JD, contact, interviews, drafts, events, resume versions (`hasPdf`/`hasDocx`) and file metadata. |
 | `update_application` | `{ id, status?, nextAction?, nextActionDate?, notes?, interestRating?, … }`. A status change logs an event, and `closed_won` creates a job. |

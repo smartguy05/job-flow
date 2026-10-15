@@ -43,6 +43,11 @@ describe("verifyAccessToken", () => {
     await expect(verifyAccessToken(token)).rejects.toThrow();
   });
 
+  it("rejects a token with no exp claim (never-expiring tokens are not accepted)", async () => {
+    const token = await issuer.sign({ sub: "abc123" }, { expiresIn: null });
+    await expect(verifyAccessToken(token)).rejects.toThrow();
+  });
+
   it("rejects a token from the wrong issuer", async () => {
     const token = await issuer.sign({ sub: "abc123" }, { issuer: "https://evil.test/application/o/jobflow/" });
     await expect(verifyAccessToken(token)).rejects.toThrow();

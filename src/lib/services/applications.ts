@@ -1,5 +1,5 @@
 import { db, schema } from "@/db";
-import { and, asc, desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { normalizeCompany } from "@/lib/dedup";
 import { logEvent } from "@/lib/events";
 import { detailFields } from "@/lib/application-fields";
@@ -127,8 +127,9 @@ export async function getApplicationDetail(userId: string, id: number) {
       fitWarning: schema.resumes.fitWarning,
       sentAt: schema.resumes.sentAt,
       createdAt: schema.resumes.createdAt,
-      hasDocx: schema.resumes.docxData,
-      hasPdf: schema.resumes.pdfData,
+      // Presence flags only — never pull the DOCX/PDF bytes into memory.
+      hasDocx: sql<boolean>`${schema.resumes.docxData} is not null`,
+      hasPdf: sql<boolean>`${schema.resumes.pdfData} is not null`,
     })
     .from(schema.resumes)
     .where(and(eq(schema.resumes.applicationId, id), eq(schema.resumes.userId, userId)))
@@ -205,7 +206,19 @@ export async function updateApplication(userId: string, id: number, body: Applic
   for (const f of ["roleTitle", "link", "notes", "jdSnapshot"]) {
     if (body[f] !== undefined) update[f] = body[f];
   }
-  if (body.contactId !== undefined) update.contactId = body.contactId;
+  if (body.contactId !== undefined) {
+    const contactId = (body.contactId as number | null) ?? null;
+    // Like createApplication, a contact must belong to this user (no cross-tenant links).
+    if (contactId !== null) {
+      const [owned] = await db
+        .select({ id: schema.contacts.id })
+        .from(schema.contacts)
+        .where(and(eq(schema.contacts.id, contactId), eq(schema.contacts.userId, userId)))
+        .limit(1);
+      if (!owned) throw new ValidationError("contactId not found");
+    }
+    update.contactId = contactId;
+  }
   if (body.appliedAt !== undefined) update.appliedAt = body.appliedAt ? new Date(body.appliedAt as string) : null;
   Object.assign(update, detailFields(body));
 

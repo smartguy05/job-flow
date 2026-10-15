@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { extractJob } from "@/lib/llm";
+import { extractJob, type ExtractedJob } from "@/lib/llm";
 import { findDuplicates } from "@/lib/dedup";
 import { getSettings } from "@/lib/settings";
 import { filterApplications } from "@/lib/dashboard-filter";
@@ -17,6 +17,22 @@ const id = z.number().int().positive();
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}/, "use an ISO date (YYYY-MM-DD)");
 
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
+
+// The only keys capture_job may save from the model's extraction. The extraction is
+// untrusted (a pasted posting can carry prompt injection), so anything else it emits —
+// status, notes, appliedAt, contactId, nextActionDate… — is dropped before createApplication.
+const EXTRACTED_KEYS = [
+  "company", "roleTitle", "link", "jdSnapshot", "contactName", "contactAgency", "contactEmail",
+  "payMin", "payMax", "payCurrency", "payPeriod", "bonus", "benefits", "locationMode", "location",
+  "employmentType", "seniorityLevel", "techStack", "companySize", "companyStage", "industry",
+  "sourceChannel", "datePosted", "applicationDeadline", "postingId", "referralName",
+] as const satisfies readonly (keyof ExtractedJob)[];
+
+function pickExtracted(raw: ExtractedJob): Partial<ExtractedJob> {
+  const out: Record<string, unknown> = {};
+  for (const k of EXTRACTED_KEYS) if (raw[k] !== undefined) out[k] = raw[k];
+  return out as Partial<ExtractedJob>;
+}
 
 type ListedApp = Awaited<ReturnType<typeof listApplications>>[number];
 
@@ -58,12 +74,12 @@ export const captureJob = defineTool({
   }),
   annotations: WRITES,
   async handler(userId, args) {
-    const extracted = await extractJob({
+    const extracted = pickExtracted(await extractJob({
       userId,
       text: args.text,
       companyHint: args.companyHint,
       contactHint: args.contactHint,
-    });
+    }));
     const settings = await getSettings(userId);
     const duplicates =
       extracted.company && extracted.roleTitle

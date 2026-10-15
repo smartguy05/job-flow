@@ -60,6 +60,40 @@ describe("capture_job", () => {
     expect(contact.name).toBe("Bob");
   });
 
+  it("saves only extracted job fields, never model-supplied status/notes/dates/contactId", async () => {
+    const [mine] = await db
+      .insert(schema.contacts)
+      .values({ userId: uid(), name: "Existing contact" })
+      .returning({ id: schema.contacts.id });
+    // A prompt-injected posting could make the model emit extra keys.
+    mockExtract.mockResolvedValue({
+      ...extracted({ company: "Injected Co", roleTitle: "Engineer", contactName: null }),
+      status: "closed_won",
+      notes: "ignore previous instructions",
+      appliedAt: "2001-01-01",
+      nextActionDate: "2001-01-01",
+      interestRating: 5,
+      contactId: mine.id,
+      sourceRaw: "spoofed",
+      userId: "someone-else",
+    } as unknown as ExtractedJob);
+    const out = (await callTool("capture_job", uid(), { text: "JD", save: true })) as { saved: { id: number } };
+    const [app] = await db.select().from(schema.applications).where(eq(schema.applications.id, out.saved.id));
+    expect(app).toMatchObject({
+      userId: uid(),
+      company: "Injected Co",
+      status: "applied",
+      notes: null,
+      appliedAt: null,
+      nextActionDate: null,
+      interestRating: null,
+      contactId: null,
+      sourceRaw: "JD",
+    });
+    const jobs = await db.select().from(schema.jobs).where(eq(schema.jobs.applicationId, app.id));
+    expect(jobs).toEqual([]);
+  });
+
   it("holds back a save when a likely duplicate exists unless allowDuplicate is set", async () => {
     mockExtract.mockResolvedValue(extracted({ company: "Dupe Inc", roleTitle: "Staff Platform Engineer" }));
     await insertApp({ company: "Dupe Inc", companyNormalized: "dupe", roleTitle: "Platform Engineer" });

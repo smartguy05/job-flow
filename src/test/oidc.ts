@@ -10,7 +10,7 @@ export type TestIssuer = {
   issuer: string;
   sign: (
     claims?: JWTPayload,
-    opts?: { issuer?: string; audience?: string | string[]; expiresIn?: string | number },
+    opts?: { issuer?: string; audience?: string | string[]; expiresIn?: string | number | null },
   ) => Promise<string>;
 };
 
@@ -50,13 +50,14 @@ export async function installTestIssuer(issuer = TEST_ISSUER): Promise<TestIssue
   return {
     issuer,
     async sign(claims = { sub: "test-user-sub" }, opts = {}) {
-      return new SignJWT(claims)
+      const jwt = new SignJWT(claims)
         .setProtectedHeader({ alg: "RS256", kid })
         .setIssuer(opts.issuer ?? issuer)
         .setAudience(opts.audience ?? process.env.OIDC_CLIENT_ID ?? "test-client")
-        .setIssuedAt()
-        .setExpirationTime(opts.expiresIn ?? "5m")
-        .sign(privateKey);
+        .setIssuedAt();
+      // `expiresIn: null` omits `exp` entirely (to test that it is required).
+      if (opts.expiresIn !== null) jwt.setExpirationTime(opts.expiresIn ?? "5m");
+      return jwt.sign(privateKey);
     },
   };
 }
