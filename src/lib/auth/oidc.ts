@@ -13,15 +13,19 @@ export type OidcConfig = {
   end_session_endpoint?: string;
 };
 
-let cachedConfig: { at: number; cfg: OidcConfig } | null = null;
-let cachedJwks: ReturnType<typeof createRemoteJWKSet> | null = null;
+// Discovery + JWKS caches, keyed by issuer base / jwks_uri. Normally there is one issuer
+// (OIDC_ISSUER); MCP_OAUTH_ISSUER adds a second when MCP tokens come from a dedicated provider.
+const configCache = new Map<string, { at: number; cfg: OidcConfig }>();
+const jwksCache = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
 
 const DISCOVERY_TTL_MS = 60 * 60 * 1000; // 1h
+
+const trimSlash = (s: string) => s.replace(/\/$/, "");
 
 function issuerBase(): string {
   const iss = process.env.OIDC_ISSUER;
   if (!iss) throw new Error("OIDC_ISSUER is required");
-  return iss.replace(/\/$/, "");
+  return trimSlash(iss);
 }
 
 function clientId(): string {
@@ -30,21 +34,25 @@ function clientId(): string {
   return id;
 }
 
-export async function getOidcConfig(): Promise<OidcConfig> {
-  if (cachedConfig && Date.now() - cachedConfig.at < DISCOVERY_TTL_MS) return cachedConfig.cfg;
-  const res = await fetch(`${issuerBase()}/.well-known/openid-configuration`);
+export async function getOidcConfig(issuer: string = issuerBase()): Promise<OidcConfig> {
+  const base = trimSlash(issuer);
+  const hit = configCache.get(base);
+  if (hit && Date.now() - hit.at < DISCOVERY_TTL_MS) return hit.cfg;
+  const res = await fetch(`${base}/.well-known/openid-configuration`);
   if (!res.ok) throw new Error(`OIDC discovery failed: ${res.status}`);
   const cfg = (await res.json()) as OidcConfig;
-  cachedConfig = { at: Date.now(), cfg };
-  cachedJwks = null; // refresh JWKS binding when discovery changes
+  configCache.set(base, { at: Date.now(), cfg });
   return cfg;
 }
 
-async function getJwks(): Promise<ReturnType<typeof createRemoteJWKSet>> {
-  if (cachedJwks) return cachedJwks;
-  const cfg = await getOidcConfig();
-  cachedJwks = createRemoteJWKSet(new URL(cfg.jwks_uri));
-  return cachedJwks;
+// One remote JWKS per jwks_uri (jose handles key rotation/refetch on unknown `kid`).
+function getJwks(cfg: OidcConfig): ReturnType<typeof createRemoteJWKSet> {
+  let jwks = jwksCache.get(cfg.jwks_uri);
+  if (!jwks) {
+    jwks = createRemoteJWKSet(new URL(cfg.jwks_uri));
+    jwksCache.set(cfg.jwks_uri, jwks);
+  }
+  return jwks;
 }
 
 export function randomToken(bytes = 32): string {
@@ -130,8 +138,7 @@ function str(v: JWTPayload[string]): string | undefined {
 
 export async function verifyIdToken(idToken: string, opts: { nonce: string }): Promise<IdClaims> {
   const cfg = await getOidcConfig();
-  const jwks = await getJwks();
-  const { payload } = await jwtVerify(idToken, jwks, {
+  const { payload } = await jwtVerify(idToken, getJwks(cfg), {
     issuer: cfg.issuer,
     audience: clientId(),
   });
@@ -142,6 +149,40 @@ export async function verifyIdToken(idToken: string, opts: { nonce: string }): P
     email: str(payload.email),
     name: str(payload.name) ?? str(payload.preferred_username),
   };
+}
+
+// The issuer of MCP access tokens: the web app's provider by default, or a dedicated
+// "JobFlow MCP" Authentik application (its own slug → its own issuer and signing key) when
+// MCP_OAUTH_ISSUER is set. Also advertised as the authorization server in the MCP
+// protected-resource metadata.
+export function mcpIssuer(): string {
+  const dedicated = process.env.MCP_OAUTH_ISSUER?.trim();
+  if (dedicated) return dedicated;
+  issuerBase(); // throws when OIDC_ISSUER is missing
+  return process.env.OIDC_ISSUER!.trim();
+}
+
+// The audience(s) an MCP bearer token must carry. Authentik sets `aud` on its JWT access
+// tokens to the provider's client ID, so this defaults to OIDC_CLIENT_ID (the web app's own
+// provider). A dedicated "JobFlow MCP" provider sets MCP_OAUTH_AUDIENCE to its client ID; a
+// comma-separated list accepts several.
+export function accessTokenAudience(): string[] {
+  const raw = process.env.MCP_OAUTH_AUDIENCE?.trim();
+  if (!raw) return [clientId()];
+  return raw.split(",").map((a) => a.trim()).filter(Boolean);
+}
+
+// Verify an OAuth access token presented as `Authorization: Bearer` (the MCP endpoint).
+// JobFlow is the resource server; Authentik is the authorization server. Checks signature
+// (provider JWKS), issuer (from discovery), audience and expiry. Throws on any failure.
+export async function verifyAccessToken(token: string): Promise<{ sub: string }> {
+  const cfg = await getOidcConfig(mcpIssuer());
+  const { payload } = await jwtVerify(token, getJwks(cfg), {
+    issuer: cfg.issuer,
+    audience: accessTokenAudience(),
+  });
+  if (!payload.sub) throw new Error("access token missing sub");
+  return { sub: String(payload.sub) };
 }
 
 // Only accept same-origin relative paths as post-login destinations (open-redirect guard).

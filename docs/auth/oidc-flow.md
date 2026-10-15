@@ -78,7 +78,28 @@ endpoint, it falls back to a local-only logout to `/login`.
 `JWSInvalid: Invalid Compact JWS`. Fix: clear the provider's Encryption Key (keep the
 Signing Key). See [Authentik setup](authentik-setup.md#troubleshooting).
 
+## MCP access tokens
+
+The browser login above produces a session cookie. The [MCP endpoint](../features/mcp.md)
+instead accepts OAuth **access tokens** that Authentik issues to Claude. JobFlow acts only as
+the resource server: Claude runs the code + PKCE flow against Authentik itself, after
+discovering it through `/.well-known/oauth-protected-resource`.
+
+- `verifyAccessToken(token)` (`src/lib/auth/oidc.ts`) loads discovery for `mcpIssuer()`.
+  That is `MCP_OAUTH_ISSUER` when a dedicated provider is used, else `OIDC_ISSUER`. It then
+  calls `jwtVerify` against that issuer's JWKS with `issuer: cfg.issuer` and
+  `audience: accessTokenAudience()`. The audience is `MCP_OAUTH_AUDIENCE` (comma-separated
+  allowed) or `OIDC_CLIENT_ID`. It returns `{ sub }`, or throws on a bad signature, issuer,
+  audience, expiry or a missing `sub`.
+- Discovery and JWKS are cached per issuer and per `jwks_uri`, with a 1h discovery TTL. jose
+  refetches JWKS on an unknown `kid`, so key rotation works.
+- `getBearerUser(req)` (`src/lib/auth.ts`) parses `Authorization: Bearer`, verifies, then
+  selects `users` by `sub`. It **never** provisions: only `upsertUserBySub` (the web
+  callback) creates users. Any failure returns `null`, and the route answers with the `401`
+  challenge.
+
 ## Related
 
+- [MCP server](../features/mcp.md)
 - [Sessions & middleware](sessions-and-middleware.md) · [Authentik setup](authentik-setup.md) ·
   [Configuration](../operations/configuration.md) · [API reference](../api/reference.md)

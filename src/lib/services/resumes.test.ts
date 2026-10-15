@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { db, schema } from "@/db";
 import { insertApp, seedUser } from "@/test/req";
 import { NotFoundError } from "./errors";
-import { getResumeFile } from "./resumes";
+import { getResumeFile, getResumeSummary } from "./resumes";
 
 const uid = () => globalThis.__testUserId;
 
@@ -40,5 +40,37 @@ describe("getResumeFile", () => {
     expect(docx.filename).toBe("resume_v3.docx");
     expect(docx.contentType).toContain("wordprocessingml");
     await expect(getResumeFile(other.id, r.id, "docx")).rejects.toBeInstanceOf(NotFoundError);
+  });
+});
+
+describe("getResumeSummary", () => {
+  it("returns metadata (never blobs) for the user's own resume only", async () => {
+    const appId = await insertApp();
+    const [r] = await db
+      .insert(schema.resumes)
+      .values({
+        userId: uid(),
+        applicationId: appId,
+        version: 3,
+        status: "draft",
+        contentJson: "{}",
+        chatJson: "[]",
+        pageCount: 2,
+        pdfData: Buffer.from("%PDF"),
+      })
+      .returning({ id: schema.resumes.id });
+    const s = await getResumeSummary(uid(), r.id);
+    expect(s).toEqual({
+      id: r.id,
+      applicationId: appId,
+      version: 3,
+      status: "draft",
+      pageCount: 2,
+      fitWarning: null,
+      hasPdf: true,
+      hasDocx: false,
+    });
+    const other = await seedUser("resume-summary-other");
+    await expect(getResumeSummary(other.id, r.id)).rejects.toBeInstanceOf(NotFoundError);
   });
 });

@@ -5,8 +5,10 @@ import { readSession, SESSION_COOKIE } from "@/lib/auth/session";
 // user session for GET); `/api/auth` is the login flow; `/login` is the sign-in page;
 // `/api/calendar/feed` self-guards with a per-user token so external calendar clients (which
 // can't do the OIDC login) can subscribe — token management stays at the session-guarded
-// `/api/calendar/token`, deliberately outside this prefix.
-const PUBLIC_PREFIXES = ["/api/auth", "/api/cron", "/api/calendar/feed", "/login"];
+// `/api/calendar/token`, deliberately outside this prefix. `/api/mcp` self-guards with an
+// OAuth bearer token (Authentik-issued, verified per request) and `/.well-known` serves the
+// public OAuth protected-resource metadata MCP clients need before they can sign in.
+const PUBLIC_PREFIXES = ["/api/auth", "/api/cron", "/api/calendar/feed", "/api/mcp", "/.well-known", "/login"];
 
 function isPublic(pathname: string): boolean {
   return PUBLIC_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));

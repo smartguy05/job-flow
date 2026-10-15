@@ -34,3 +34,24 @@ export async function getResumeFile(userId: string, resumeId: number, fmt: Resum
     contentType: CONTENT_TYPES[fmt],
   };
 }
+
+// Metadata for one of the user's resumes — never the DOCX/PDF bytes.
+export async function getResumeSummary(userId: string, resumeId: number) {
+  const [r] = await db
+    .select({
+      id: schema.resumes.id,
+      applicationId: schema.resumes.applicationId,
+      version: schema.resumes.version,
+      status: schema.resumes.status,
+      pageCount: schema.resumes.pageCount,
+      fitWarning: schema.resumes.fitWarning,
+      docx: schema.resumes.docxData,
+      pdf: schema.resumes.pdfData,
+    })
+    .from(schema.resumes)
+    .where(and(eq(schema.resumes.id, resumeId), eq(schema.resumes.userId, userId)))
+    .limit(1);
+  if (!r) throw new NotFoundError();
+  const { docx, pdf, ...meta } = r;
+  return { ...meta, hasPdf: !!pdf, hasDocx: !!docx };
+}

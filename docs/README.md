@@ -9,12 +9,12 @@ documents how the system is built and operated. Start here and follow the links.
 - [Overview](architecture/overview.md) — stack, request lifecycle, module map.
 - [Data model](architecture/data-model.md) — tables, relationships, multi-tenancy, file storage.
 - [Database layer](architecture/database.md) — driver selection, migrations, startup, tests.
-- [Service layer](architecture/service-layer.md) — `src/lib/services/`: user-scoped domain operations shared by routes (and MCP), typed errors.
+- [Service layer](architecture/service-layer.md) — `src/lib/services/`: user-scoped domain operations shared by routes and MCP tools, typed errors.
 
 ### Authentication
 - [OIDC flow](auth/oidc-flow.md) — Authentik authorization-code + PKCE, token/id_token handling.
 - [Sessions & middleware](auth/sessions-and-middleware.md) — iron-session cookies, the route gate, `getUser`.
-- [Authentik setup](auth/authentik-setup.md) — provider/application configuration walkthrough.
+- [Authentik setup](auth/authentik-setup.md) — provider/application configuration walkthrough, including the MCP connector (Claude callback, audience, `offline_access`).
 
 ### Features
 - [Applications & tracking](features/applications-and-tracking.md) — capture, dedup, CRUD, dashboard filtering (hides expired/closed by default), interviews, post-interview debrief (optional Whisper transcription), drafts, timeline.
@@ -26,6 +26,7 @@ documents how the system is built and operated. Start here and follow the links.
 - [Prior inventions (Exhibit A)](features/prior-inventions.md) — structured list of prior inventions/works of authorship; AI drafting (describe, GitHub repo, suggest from history, import), DOCX/PDF/text export, per-entry opt-in to resumes.
 - [Offer comparison](features/offer-comparison.md) — side-by-side table + AI verdict across competing offers, with benefits-PDF upload.
 - [Reminders & analytics](features/reminders-and-analytics.md) — per-user reminder sweep, ntfy, analytics.
+- [MCP server](features/mcp.md) — use JobFlow from Claude: Streamable HTTP endpoint at `/api/mcp`, Authentik OAuth (resource-server token verification, RFC 9728 discovery), tool list, connector setup for claude.ai/Desktop/Code.
 - [Mobile & PWA](features/mobile-and-pwa.md) — mobile-first responsive shell, bottom-nav + drawer, installable PWA.
 
 ### Operations

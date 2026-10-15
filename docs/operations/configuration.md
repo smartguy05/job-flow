@@ -15,6 +15,8 @@ All configuration is via environment variables (see `.env.example`). Two layers:
 | `OIDC_ISSUER` | ✅ | Authentik issuer, e.g. `https://auth.example.com/application/o/jobflow/` (no `.well-known` suffix). |
 | `OIDC_CLIENT_ID` | ✅ | OAuth2 client ID. |
 | `OIDC_CLIENT_SECRET` | ✅ | OAuth2 client secret (confidential client). |
+| `MCP_OAUTH_AUDIENCE` | optional | Required `aud` for [MCP](../features/mcp.md) bearer tokens. Defaults to `OIDC_CLIENT_ID`, because Authentik sets `aud` to the issuing provider's client ID. Set it to the dedicated MCP provider's client ID; comma-separated values accept several. |
+| `MCP_OAUTH_ISSUER` | optional | Issuer of MCP tokens when a dedicated Authentik provider/application issues them (e.g. `https://auth.example.com/application/o/jobflow-mcp/`). It is advertised as the authorization server in `/.well-known/oauth-protected-resource`, and tokens are verified against its JWKS. Defaults to `OIDC_ISSUER`. |
 | `SESSION_SECRET` | ✅ | iron-session cookie encryption password, **≥32 chars** (`openssl rand -base64 48`). |
 | `ANTHROPIC_API_KEY` | one of | Anthropic key (operator-wide). |
 | `OPENAI_API_KEY` | one of | OpenAI key (operator-wide). At least one provider key is required. **Also required for interview-debrief audio transcription** (Whisper), even when the chat provider is Anthropic — Anthropic has no transcription endpoint. Without it, pasting a transcript still works; audio upload is disabled. |
@@ -26,6 +28,8 @@ All configuration is via environment variables (see `.env.example`). Two layers:
 
 - **LLM keys are operator-wide**, shared by all users; users only pick *which* provider to
   use (a per-user setting). Keys are read from `process.env`, never stored per user.
+- `APP_BASE_URL` also defines the MCP resource URL (`${APP_BASE_URL}/api/mcp`), which must
+  match exactly what users enter in Claude. See [Authentik setup](../auth/authentik-setup.md#6-mcp-connector-claude).
 - `APP_BASE_URL` is required (it drives OIDC correctness), and for local testing it should
   be `http://localhost:3000`. See [Authentik setup](../auth/authentik-setup.md).
 
@@ -53,4 +57,5 @@ and routes (see [resume generation](../features/resume-generation.md)).
 ## Related
 
 - [Deployment](deployment.md) · [Authentik setup](../auth/authentik-setup.md) ·
-  [Database layer](../architecture/database.md) · [Reminders & analytics](../features/reminders-and-analytics.md)
+  [Database layer](../architecture/database.md) · [Reminders & analytics](../features/reminders-and-analytics.md) ·
+  [MCP server](../features/mcp.md)

@@ -8,7 +8,7 @@ for rows the caller doesn't own (see [data model](../architecture/data-model.md)
 
 Conventions: request/response bodies are JSON. `[id]` is an integer path segment. Error bodies
 are `{ "error": string }`. Applications, interviews, contacts, the work journal, resume
-downloads and the needs-attention list are thin wrappers over the
+downloads, drafts, the jobs list and the needs-attention list are thin wrappers over the
 [service layer](../architecture/service-layer.md).
 
 ## Auth
@@ -20,6 +20,16 @@ downloads and the needs-attention list are thin wrappers over the
 | `POST /api/auth/logout` | public | RP-initiated logout; clears session, ends IdP session. |
 
 See [OIDC flow](../auth/oidc-flow.md).
+
+## MCP
+
+| Method / Path | Auth | Purpose |
+|---|---|---|
+| `POST /api/mcp` | OAuth bearer | MCP Streamable HTTP endpoint (stateless, JSON-RPC in, SSE out). Needs `Authorization: Bearer <Authentik access token>`. Without one, or with a bad or unknown-user token, it returns `401` with `WWW-Authenticate: Bearer resource_metadata="…/.well-known/oauth-protected-resource"`. Session cookies are ignored. Middleware-exempt. |
+| `GET`, `DELETE /api/mcp` | OAuth bearer | `401` challenge without a token, otherwise `405` (`Allow: POST`). There is no standalone stream or session in stateless mode. |
+| `GET /.well-known/oauth-protected-resource` | public | RFC 9728 metadata: `resource` (`${APP_BASE_URL}/api/mcp`), `authorization_servers` (`[MCP_OAUTH_ISSUER ?? OIDC_ISSUER]`), `scopes_supported`, `bearer_methods_supported: ["header"]`. Also served at `/.well-known/oauth-protected-resource/api/mcp`. |
+
+See [MCP server](../features/mcp.md) for the tool list.
 
 ## Applications
 
@@ -33,7 +43,7 @@ See [OIDC flow](../auth/oidc-flow.md).
 | `PUT /api/applications/[id]/job-description` | Set the job description used for tailoring. Either JSON `{ jdSnapshot }` (paste/amend) or `multipart/form-data` with a `file` (PDF/Word/text, ≤10MB — text extracted server-side). Logs a `jd_updated` event. → `{ jdSnapshot }`. |
 | `POST /api/applications/[id]/generate` | Generate a tailored resume version → `{ resumeId }`. 404 if app not owned. |
 | `POST /api/applications/[id]/resumes` | Attach a copy of an existing resume as a new draft version. Body: `sourceResumeId` (req). → `{ resumeId }`. 400 if missing, 404 if source/target not owned. |
-| `POST /api/applications/[id]/drafts` | Generate + store a draft. Body: `type` (`reply`\|`cover_letter`\|`follow_up`), `extra?`. |
+| `POST /api/applications/[id]/drafts` | Generate + store a draft (`createDraft`). Body: `type` (`reply`\|`cover_letter`\|`follow_up`, default `reply`; anything else is `400`), `extra?`. 404 if the app is not owned. |
 | `POST /api/applications/[id]/interviews` | Add an interview round. |
 | `GET /api/applications/[id]/files` | List uploaded document metadata (no bytes), including `kind`. |
 | `POST /api/applications/[id]/files` | Upload a document. `multipart/form-data` with a `file` and an optional `kind` (`resume`\|`cover_letter`\|`message`\|`offer_letter`\|`misc`\|`benefits`, defaults to `benefits`). `benefits` accepts PDF only; the other kinds accept PDF or DOCX (`application/vnd.openxmlformats-officedocument.wordprocessingml.document`). ≤10MB. → file metadata (incl. `kind`). |
@@ -198,4 +208,4 @@ See [reminders & analytics](../features/reminders-and-analytics.md).
 
 - [Sessions & middleware](../auth/sessions-and-middleware.md) · [Data model](../architecture/data-model.md) ·
   [Applications & tracking](../features/applications-and-tracking.md) · [Interview questions](../features/interview-questions.md) · [Resume generation](../features/resume-generation.md) ·
-  [Service layer](../architecture/service-layer.md)
+  [Service layer](../architecture/service-layer.md) · [MCP server](../features/mcp.md)

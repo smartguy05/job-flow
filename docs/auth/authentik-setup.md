@@ -68,6 +68,60 @@ curl -s https://auth.example.com/application/o/jobflow/.well-known/openid-config
 
 Then open the app → **Sign in with Authentik** → you should land back signed in.
 
+## 6. MCP connector (Claude)
+
+The [MCP server](../features/mcp.md) at `/api/mcp` accepts Authentik-issued OAuth **access
+tokens**. Authentik is the authorization server, and Claude is the OAuth client.
+
+**What Authentik puts in the access token.** For authorization-code grants, an OAuth2/OpenID
+provider issues the access token as a **JWT**, signed with the provider's **Signing Key**
+(served at `…/application/o/<slug>/jwks/`). Its claims mirror the id_token:
+- `iss` is the provider's issuer (`…/application/o/<slug>/` in the default per-provider
+  issuer mode);
+- `sub` follows the provider's subject mode;
+- `aud` is the provider's **Client ID**.
+
+JobFlow checks signature, `iss`, `aud` and `exp` (`verifyAccessToken`). Check this on your
+own Authentik version by decoding a token (`jq -R 'split(".")[1] | @base64d | fromjson'`).
+If `aud` differs there, set `MCP_OAUTH_AUDIENCE` to the value you see.
+
+**Claude's callback.** The hosted Claude apps (claude.ai, Desktop, mobile, Cowork) use the
+fixed redirect URI `https://claude.ai/api/mcp/auth_callback`. Claude Code uses an RFC 8252
+loopback redirect, `http://localhost:<port>/callback`. Authentik offers no dynamic client
+registration, so the user pastes the client ID and secret into the connector's advanced
+settings.
+
+### Option A: reuse the web provider (simplest)
+
+On the `jobflow` provider:
+
+| Field | Add |
+|---|---|
+| Redirect URIs | `https://claude.ai/api/mcp/auth_callback` (Strict). For Claude Code, also add the Regex `http://(localhost\|127\.0\.0\.1):\d+/callback`, or a Strict `http://localhost:<fixed port>/callback`. |
+| Scopes | Add the **`offline_access`** mapping (`authentik default OAuth Mapping: OpenID 'offline_access'`). Claude asks for it, and without it there is no refresh token. |
+| Access token validity | Optional. The default is 5 minutes, and with refresh tokens Claude renews silently. |
+| Encryption Key | Must stay **empty**, as for the id_token. An encrypted (JWE) access token can't be verified. |
+
+No env change is needed: the audience defaults to `OIDC_CLIENT_ID`, and the issuer to
+`OIDC_ISSUER`.
+
+### Option B: a dedicated "JobFlow MCP" provider
+
+This keeps the MCP client separate, for example to revoke it independently.
+
+1. Create a second OAuth2/OpenID provider with the redirect URIs and `offline_access` scope
+   from Option A, a Signing Key, and no Encryption Key.
+2. Set its **Subject mode to the same value as the web provider**. JobFlow maps `sub` to the
+   user who signed in on the web, so a different mode makes everyone unknown (`401`).
+3. Create an Application for it, for example with slug `jobflow-mcp`, so its issuer is
+   `https://auth.example.com/application/o/jobflow-mcp/`.
+4. Set `MCP_OAUTH_ISSUER` to that issuer, and `MCP_OAUTH_AUDIENCE` to the new Client ID.
+   The issuer is advertised in `/.well-known/oauth-protected-resource`, and tokens are
+   verified against its JWKS. See [configuration](../operations/configuration.md).
+
+Either way, bind the same access policy as the web application if you restrict sign-in
+(step 3). A person must have signed in to the web app once before MCP works for them.
+
 ## Troubleshooting
 
 - **`We couldn't verify your identity` / server log `JWSInvalid: Invalid Compact JWS`** —
@@ -76,10 +130,18 @@ Then open the app → **Sign in with Authentik** → you should land back signed
   token is exchanged server-to-server over TLS.
 - **Redirect/`?error=state`** — the redirect URI or `post_logout_redirect_uri` isn't
   registered exactly (Strict match), or the tx cookie expired (>10 min between steps).
+- **MCP connector says authorization failed / every MCP call is 401.** Check the
+  following:
+  - the token's `aud` must match `MCP_OAUTH_AUDIENCE` (default `OIDC_CLIENT_ID`);
+  - `iss` must match `MCP_OAUTH_ISSUER`/`OIDC_ISSUER` discovery;
+  - the person must have signed in to the web app once;
+  - with Option B, both providers must use the same subject mode;
+  - the redirect URI must be registered exactly (`https://claude.ai/api/mcp/auth_callback`).
 - **Trailing slash** — `OIDC_ISSUER` must match the discovery document's `issuer` exactly
   (Authentik uses a trailing slash).
 
 ## Related
 
 - [OIDC flow](oidc-flow.md) · [Sessions & middleware](sessions-and-middleware.md) ·
-  [Configuration](../operations/configuration.md) · [Deployment](../operations/deployment.md)
+  [Configuration](../operations/configuration.md) · [Deployment](../operations/deployment.md) ·
+  [MCP server](../features/mcp.md)

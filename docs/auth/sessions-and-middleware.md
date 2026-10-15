@@ -58,8 +58,11 @@ window.
 
 Logic:
 
-- **Public prefixes** — `/api/auth`, `/api/cron`, `/api/calendar/feed`, `/login` — pass
-  through untouched. (`/api/cron` self-guards: `x-cron-secret` for POST, a user session for
+- **Public prefixes** — `/api/auth`, `/api/cron`, `/api/calendar/feed`, `/api/mcp`,
+  `/.well-known`, `/login` — pass through untouched. `/api/mcp` self-guards with an
+  Authentik OAuth bearer token (`getBearerUser`, which ignores the session cookie), and
+  `/.well-known` serves the public OAuth protected-resource metadata. See
+  [MCP server](../features/mcp.md). (`/api/cron` self-guards: `x-cron-secret` for POST, a user session for
   GET. `/api/calendar/feed` self-guards on a per-user `?token=` so external calendar clients
   can subscribe without a session; its token management stays at the session-guarded
   `/api/calendar/token`, deliberately outside this prefix. See
@@ -87,5 +90,5 @@ See [testing](../operations/testing.md).
 
 ## Related
 
-- [OIDC flow](oidc-flow.md) · [Authentik setup](authentik-setup.md) ·
+- [OIDC flow](oidc-flow.md) · [Authentik setup](authentik-setup.md) · [MCP server](../features/mcp.md) ·
   [Data model](../architecture/data-model.md) · [API reference](../api/reference.md)

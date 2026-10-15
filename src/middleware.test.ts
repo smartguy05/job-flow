@@ -31,4 +31,17 @@ describe("auth middleware", () => {
       expect(res.status, p).toBe(200);
     }
   });
+
+  it("exempts the MCP endpoint and OAuth discovery (they self-guard with bearer tokens)", async () => {
+    for (const p of ["/api/mcp", "/.well-known/oauth-protected-resource", "/.well-known/oauth-protected-resource/api/mcp"]) {
+      const res = await middleware(anonReq(p, "POST"));
+      expect(res.headers.get("location"), p).toBeNull();
+      expect(res.status, p).toBe(200);
+    }
+  });
+
+  it("does not exempt look-alike prefixes", async () => {
+    const res = await middleware(anonReq("/api/mcpx"));
+    expect(res.status).toBe(401);
+  });
 });

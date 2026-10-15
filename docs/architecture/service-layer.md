@@ -1,7 +1,7 @@
 # Service layer
 
-`src/lib/services/` holds the domain operations that HTTP route handlers (and, later, the
-MCP tools) share. A route does auth, parses the request, calls one service function and
+`src/lib/services/` holds the domain operations that HTTP route handlers and the
+[MCP tools](../features/mcp.md) share. A route does auth, parses the request, calls one service function and
 shapes the HTTP response. It holds no business logic of its own, so a second entry point
 such as MCP reuses the exact same code path.
 
@@ -21,12 +21,14 @@ such as MCP reuses the exact same code path.
 
 | Module | Functions | Used by |
 |---|---|---|
-| `applications.ts` | `listApplications` (lazily runs `expireStaleApplications`), `createApplication` (inline contact, foreign `contactId` ignored), `getApplicationDetail` (resume summaries without blobs, linked `jobId`), `updateApplication` (status events, `appliedAt` backfill, `createJobFromApplication` on `closed_won`), `deleteApplication` | `/api/applications`, `/api/applications/[id]` |
-| `interviews.ts` | `addInterview` (logs an `interview` event), `updateInterview`, `deleteInterview` | `/api/applications/[id]/interviews`, `/api/interviews/[id]` |
+| `applications.ts` | `listApplications` (lazily runs `expireStaleApplications`), `createApplication` (inline contact, foreign `contactId` ignored), `getApplicationDetail` (resume summaries without blobs, linked `jobId`), `updateApplication` (status events, `appliedAt` backfill, `createJobFromApplication` on `closed_won`), `deleteApplication` | `/api/applications`, `/api/applications/[id]`; MCP `capture_job`, `list_applications`, `get_application`, `update_application` |
+| `interviews.ts` | `addInterview` (logs an `interview` event), `updateInterview`, `deleteInterview` | `/api/applications/[id]/interviews`, `/api/interviews/[id]`; MCP `add_interview`, `update_interview` |
+| `drafts.ts` | `createDraft(userId, applicationId, { type?, extra? })`: generates via `generateDraft`, stores it and logs a `note` event. Unknown `type` gives `ValidationError`. | `/api/applications/[id]/drafts`; MCP `draft_message` |
+| `jobs.ts` | `listJobs` (current first, `tenureMonths`, parsed technologies) | `GET /api/jobs`; MCP `list_jobs` |
 | `contacts.ts` | `listContacts`, `createContact`, `findContactByEmail` (trimmed, case-insensitive) | `/api/contacts` |
-| `attention.ts` | `candidatesForUser(userId, quietDays)`, `OPEN_STATUSES`, `Candidate` | `/api/cron/reminders` (GET and the sweep) |
-| `journal.ts` | `listJournal(userId, { jobId?, from?, to?, kind? })` (across all jobs when `jobId` is omitted), `addJournalEntry`, `updateJournalEntry` (clears `syncedAt`), `deleteJournalEntry` | `/api/jobs/[id]/journal`, `/api/journal/[id]` |
-| `resumes.ts` | `getResumeFile(userId, resumeId, "pdf" \| "docx")` → `{ data, filename, contentType }` | `/api/resumes/[id]/download` |
+| `attention.ts` | `candidatesForUser(userId, quietDays)`, `OPEN_STATUSES`, `Candidate` | `/api/cron/reminders` (GET and the sweep); MCP `needs_attention` |
+| `journal.ts` | `listJournal(userId, { jobId?, from?, to?, kind? })` (across all jobs when `jobId` is omitted), `addJournalEntry`, `updateJournalEntry` (clears `syncedAt`), `deleteJournalEntry` | `/api/jobs/[id]/journal`, `/api/journal/[id]`; MCP `add_journal_entry`, `list_journal` |
+| `resumes.ts` | `getResumeFile(userId, resumeId, "pdf" \| "docx")` → `{ data, filename, contentType }`; `getResumeSummary` (metadata + `hasPdf`/`hasDocx`, no bytes) | `/api/resumes/[id]/download`; MCP `generate_resume` |
 
 Existing helpers are reused as they are rather than wrapped: `extractJob`, `findDuplicates`,
 `createResumeForApplication`, `generateDraft`, `getOwnedJob`, `jobInput`, `journalInput`,
@@ -41,7 +43,8 @@ test user's id, including cross-tenant cases built with `seedUser()`. The route 
 
 ## Related
 
-- [Overview](overview.md) · [Data model](data-model.md) · [API reference](../api/reference.md)
+- [Overview](overview.md) · [Data model](data-model.md) · [API reference](../api/reference.md) ·
+  [MCP server](../features/mcp.md)
 - [Applications & tracking](../features/applications-and-tracking.md) ·
   [Employment history](../features/employment-history.md) ·
   [Reminders & analytics](../features/reminders-and-analytics.md) ·

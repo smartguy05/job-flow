@@ -32,6 +32,19 @@ process, so each gets a fresh in-memory pglite DB. Setup:
 - `seedUser(sub)` — **async**; creates a second user and returns `{ id, cookie, req }` for
   cross-tenant isolation tests.
 
+## Bearer-token helper (`src/test/oidc.ts`)
+
+`installTestIssuer(issuer?)` creates a local RS256 keypair and stubs global `fetch`, so the
+issuer's OIDC discovery document and JWKS are served from memory. It returns
+`{ issuer, sign(claims?, { issuer?, audience?, expiresIn? }) }`, which mints access tokens
+with jose. The default issuer matches `OIDC_ISSUER` from the setup, and the default
+audience is `OIDC_CLIENT_ID`. Call it again with another issuer to simulate a dedicated MCP
+provider. The [MCP](../features/mcp.md) route, `getBearerUser` and `verifyAccessToken`
+tests use it. No real Authentik is ever contacted.
+
+MCP tool handlers are tested with `callTool(name, userId, args)` from
+`src/lib/mcp/registry.ts`, which runs the zod input schema and then the handler.
+
 ## Conventions
 
 - **Async DB API** — `await db.select()...`; single row via `const [x] = await …limit(1)`.
@@ -55,4 +68,5 @@ Target **≥70% (goal 80%)** on `src/lib`, `src/db`, `src/app/api` (config in
 ## Related
 
 - [Database layer](../architecture/database.md) · [Sessions & middleware](../auth/sessions-and-middleware.md) ·
-  [API reference](../api/reference.md) · [Service layer](../architecture/service-layer.md)
+  [API reference](../api/reference.md) · [Service layer](../architecture/service-layer.md) ·
+  [MCP server](../features/mcp.md)

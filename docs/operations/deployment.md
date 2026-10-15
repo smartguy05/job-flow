@@ -11,7 +11,8 @@ Target: Docker on a Proxmox CT behind a Cloudflare Tunnel. Env vars are covered 
   healthcheck.
 - **`jobflow`** — built from the `Dockerfile`; `depends_on postgres: service_healthy`;
   publishes `3000:3000`; receives `DATABASE_URL`, the OIDC/`SESSION_SECRET` vars,
-  `APP_BASE_URL`, provider keys, and `CRON_SECRET`.
+  `APP_BASE_URL`, provider keys, `CRON_SECRET`, and the optional `MCP_OAUTH_AUDIENCE` /
+  `MCP_OAUTH_ISSUER` ([MCP server](../features/mcp.md)).
 - **`reminders`** — a `curl` sidecar that POSTs `/api/cron/reminders` hourly with
   `x-cron-secret`. See [reminders](../features/reminders-and-analytics.md).
 
@@ -50,7 +51,13 @@ internally.
 
 - Because all redirects derive from `APP_BASE_URL`, **no `X-Forwarded-*` trust is needed**.
 - Register `${APP_BASE_URL}/api/auth/callback` and `${APP_BASE_URL}/login` in Authentik.
-- Cloudflare Access is optional/complementary — OIDC is the real gate.
+- Cloudflare Access is optional/complementary — OIDC is the real gate. If you use it, bypass
+  `/api/mcp` and `/.well-known/*`, and keep Authentik's OAuth endpoints reachable. Claude's
+  hosted apps connect from Anthropic's network (egress `160.79.104.0/21`) and can't pass an
+  Access login. The MCP endpoint is protected by its own bearer-token check. See
+  [MCP server](../features/mcp.md).
+- Long MCP tool calls (resume generation) stream over SSE with keep-alive frames, which keeps
+  the connection active through Cloudflare's 100-second idle timeout.
 
 ## Local run against a real Postgres
 
@@ -84,4 +91,5 @@ docker exec jobflow-db pg_dump -U jobflow jobflow > jobflow-backup.sql
 ## Related
 
 - [Configuration](configuration.md) · [Database layer](../architecture/database.md) ·
-  [Authentik setup](../auth/authentik-setup.md) · [Testing](testing.md)
+  [Authentik setup](../auth/authentik-setup.md) · [Testing](testing.md) ·
+  [MCP server](../features/mcp.md)
