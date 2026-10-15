@@ -6,7 +6,10 @@ returns `401` for unauthenticated `/api/*`, and handlers also call `getUser(req)
 defense-in-depth. All data is scoped to the caller; `[id]` routes return **404** (not 403)
 for rows the caller doesn't own (see [data model](../architecture/data-model.md)).
 
-Conventions: request/response bodies are JSON. `[id]` is an integer path segment.
+Conventions: request/response bodies are JSON. `[id]` is an integer path segment. Error bodies
+are `{ "error": string }`. Applications, interviews, contacts, the work journal, resume
+downloads and the needs-attention list are thin wrappers over the
+[service layer](../architecture/service-layer.md).
 
 ## Auth
 
@@ -194,4 +197,5 @@ See [reminders & analytics](../features/reminders-and-analytics.md).
 ## Related
 
 - [Sessions & middleware](../auth/sessions-and-middleware.md) · [Data model](../architecture/data-model.md) ·
-  [Applications & tracking](../features/applications-and-tracking.md) · [Interview questions](../features/interview-questions.md) · [Resume generation](../features/resume-generation.md)
+  [Applications & tracking](../features/applications-and-tracking.md) · [Interview questions](../features/interview-questions.md) · [Resume generation](../features/resume-generation.md) ·
+  [Service layer](../architecture/service-layer.md)

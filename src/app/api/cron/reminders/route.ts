@@ -1,84 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db, schema } from "@/db";
-import { and, inArray, lt, eq, isNotNull } from "drizzle-orm";
+import { and, inArray, eq } from "drizzle-orm";
 import { getSettings } from "@/lib/settings";
 import { sendNtfy } from "@/lib/ntfy";
 import { expireStaleApplications } from "@/lib/expiry";
 import { getUser, unauthorized } from "@/lib/auth";
-
-const OPEN = ["applied", "in_progress"];
-const DAY = 24 * 60 * 60 * 1000;
-
-type Candidate = {
-  id: number;
-  userId: string;
-  company: string;
-  roleTitle: string;
-  status: string;
-  reason: "quiet" | "next_action_due";
-  daysQuiet: number;
-  nextAction: string | null;
-};
-
-// Applications belonging to one user that need attention: quiet past their window OR with
-// a due next action. De-duplicated by id (quiet takes precedence in the label).
-async function candidatesForUser(userId: string, quietDays: number): Promise<Candidate[]> {
-  const now = Date.now();
-  const cutoff = new Date(now - quietDays * DAY);
-
-  const quiet = (
-    await db
-      .select()
-      .from(schema.applications)
-      .where(
-        and(
-          eq(schema.applications.userId, userId),
-          inArray(schema.applications.status, OPEN),
-          lt(schema.applications.lastActivityAt, cutoff),
-        ),
-      )
-  ).filter((a) => !a.lastRemindedAt || a.lastRemindedAt < cutoff);
-
-  const dueActions = await db
-    .select()
-    .from(schema.applications)
-    .where(
-      and(
-        eq(schema.applications.userId, userId),
-        inArray(schema.applications.status, OPEN),
-        isNotNull(schema.applications.nextActionDate),
-        lt(schema.applications.nextActionDate, new Date(now)),
-      ),
-    );
-
-  const byId = new Map<number, Candidate>();
-  for (const a of quiet) {
-    byId.set(a.id, {
-      id: a.id,
-      userId,
-      company: a.company,
-      roleTitle: a.roleTitle,
-      status: a.status,
-      reason: "quiet",
-      daysQuiet: Math.floor((now - a.lastActivityAt.getTime()) / DAY),
-      nextAction: a.nextAction,
-    });
-  }
-  for (const a of dueActions) {
-    if (byId.has(a.id)) continue;
-    byId.set(a.id, {
-      id: a.id,
-      userId,
-      company: a.company,
-      roleTitle: a.roleTitle,
-      status: a.status,
-      reason: "next_action_due",
-      daysQuiet: Math.floor((now - a.lastActivityAt.getTime()) / DAY),
-      nextAction: a.nextAction,
-    });
-  }
-  return [...byId.values()];
-}
+import { candidatesForUser, OPEN_STATUSES } from "@/lib/services/attention";
 
 // Called by the container's cron. System-triggered (no user session): iterate every user
 // with open applications and push per-user ntfy nudges using their own settings.
@@ -91,7 +18,7 @@ export async function POST(req: NextRequest) {
   const openApps = await db
     .select({ userId: schema.applications.userId })
     .from(schema.applications)
-    .where(inArray(schema.applications.status, OPEN));
+    .where(inArray(schema.applications.status, OPEN_STATUSES));
   const userIds = [...new Set(openApps.map((a) => a.userId))];
 
   const baseUrl = process.env.APP_BASE_URL || "";

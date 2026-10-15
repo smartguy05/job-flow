@@ -9,6 +9,7 @@ documents how the system is built and operated. Start here and follow the links.
 - [Overview](architecture/overview.md) — stack, request lifecycle, module map.
 - [Data model](architecture/data-model.md) — tables, relationships, multi-tenancy, file storage.
 - [Database layer](architecture/database.md) — driver selection, migrations, startup, tests.
+- [Service layer](architecture/service-layer.md) — `src/lib/services/`: user-scoped domain operations shared by routes (and MCP), typed errors.
 
 ### Authentication
 - [OIDC flow](auth/oidc-flow.md) — Authentik authorization-code + PKCE, token/id_token handling.

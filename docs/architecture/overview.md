@@ -22,7 +22,9 @@ JobFlow is a self-hosted, multi-user job-application tracker and tailored-resume
    `/icon.svg`) are exempt. See [sessions & middleware](../auth/sessions-and-middleware.md).
 2. A **route handler** (`src/app/api/**/route.ts`) resolves the user with
    `getUser(req)` from `@/lib/auth`, returns `unauthorized()` if absent, then scopes
-   every query by `user.id`. See [API reference](../api/reference.md).
+   every query by `user.id`. Most handlers delegate to a user-scoped function in
+   `src/lib/services/` and map its `NotFoundError` / `ValidationError` to 404 / 400. See
+   [service layer](service-layer.md) and [API reference](../api/reference.md).
 3. **Business logic** lives in `src/lib/**` (pure/testable), not in React pages. LLM
    calls funnel through `src/lib/llm-provider.ts` (`complete()`); prompts live in
    `src/lib/llm.ts`.
@@ -45,6 +47,7 @@ JobFlow is a self-hosted, multi-user job-application tracker and tailored-resume
 | LLM prompts | `src/lib/llm.ts` | Extraction, generation, refine, drafts, profile assist. |
 | Resume render | `src/lib/render-resume.ts` | DOCX build + soffice/pdfinfo → buffers. |
 | Resume service | `src/lib/resume-service.ts` | 2-page fit loop, persistence. |
+| Services | `src/lib/services/*.ts` | User-scoped domain operations shared by routes. See [service layer](service-layer.md). |
 | Settings | `src/lib/settings.ts` | Per-user key/value settings. |
 | Events/dedup/ntfy | `src/lib/{events,dedup,ntfy}.ts` | Activity log, duplicate detection, push. |
 | Startup | `src/instrumentation.ts` | Runs migrations once at server boot. |
@@ -61,5 +64,5 @@ JobFlow is a self-hosted, multi-user job-application tracker and tailored-resume
 
 ## Related
 
-- [Data model](data-model.md) · [Database layer](database.md) ·
+- [Data model](data-model.md) · [Database layer](database.md) · [Service layer](service-layer.md) ·
   [Deployment](../operations/deployment.md) · [Testing](../operations/testing.md)

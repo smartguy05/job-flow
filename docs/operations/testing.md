@@ -55,4 +55,4 @@ Target **≥70% (goal 80%)** on `src/lib`, `src/db`, `src/app/api` (config in
 ## Related
 
 - [Database layer](../architecture/database.md) · [Sessions & middleware](../auth/sessions-and-middleware.md) ·
-  [API reference](../api/reference.md)
+  [API reference](../api/reference.md) · [Service layer](../architecture/service-layer.md)

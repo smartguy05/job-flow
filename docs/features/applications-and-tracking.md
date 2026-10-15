@@ -148,4 +148,4 @@ List/create recruiters and agency contacts (per user). Applications reference a 
 
 - [Resume generation](resume-generation.md) · [Employment history](employment-history.md) · [Reminders & analytics](reminders-and-analytics.md) ·
   [Offer comparison](offer-comparison.md) · [Interview questions](interview-questions.md) · [Data model](../architecture/data-model.md) ·
-  [API reference](../api/reference.md)
+  [API reference](../api/reference.md) · [Service layer](../architecture/service-layer.md)

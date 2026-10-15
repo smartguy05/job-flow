@@ -84,3 +84,4 @@ Profile jobs are also matched against the won applications in the same preview, 
 - [Offer comparison](offer-comparison.md)
 - [Data model](../architecture/data-model.md)
 - [API reference](../api/reference.md)
+- [Service layer](../architecture/service-layer.md) (`listJournal` across jobs, journal CRUD)

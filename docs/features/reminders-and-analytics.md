@@ -25,7 +25,7 @@ each owner's own settings:
 
 1. Collect distinct `userId`s from open (`applied`/`in_progress`) applications.
 2. Per user, expire stale applications first (see below), then
-   `candidatesForUser(userId, reminderQuietDays)` finds:
+   `candidatesForUser(userId, reminderQuietDays)` (`src/lib/services/attention.ts`) finds:
    - **quiet** — `lastActivityAt` older than the user's quiet window (default 7 days) and
      not reminded within that window; and
    - **next_action_due** — `nextActionDate` in the past.
@@ -70,4 +70,5 @@ the "responded" count (a dead application never progressed).
 ## Related
 
 - [Applications & tracking](applications-and-tracking.md) · [API reference](../api/reference.md) ·
-  [Configuration](../operations/configuration.md) · [Deployment](../operations/deployment.md)
+  [Configuration](../operations/configuration.md) · [Deployment](../operations/deployment.md) ·
+  [Service layer](../architecture/service-layer.md)
